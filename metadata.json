@@ -1,0 +1,9 @@
+{
+  "name": "Remix: MUKTI Study",
+  "description": "A premium study companion powered by MUKTI AI. Features include a Real-time Video Tutor, intelligent chat, AI flashcards, and concept visuals.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
