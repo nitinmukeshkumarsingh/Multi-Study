@@ -116,6 +116,7 @@ export const generateFlashcards = async (
 export const generateDiagramImage = async (prompt: string): Promise<string | null> => {
   const openRouterKey = getOpenRouterApiKey();
 
+  // Primary Path: OpenRouter Flux
   if (openRouterKey) {
     try {
       const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
@@ -128,7 +129,7 @@ export const generateDiagramImage = async (prompt: string): Promise<string | nul
         },
         body: JSON.stringify({
           model: "black-forest-labs/flux-1-schnell",
-          prompt: `Create a clean, high-contrast, educational diagram explaining: ${prompt}. Use a white background, clear labels, and a professional textbook illustration style.`,
+          prompt: `Create a clean, high-contrast, educational diagram explaining: ${prompt}. Use a white background, clear labels, and a professional textbook illustration style. Ensure all text is legible.`,
         })
       });
 
@@ -138,13 +139,17 @@ export const generateDiagramImage = async (prompt: string): Promise<string | nul
            return data.data[0].url;
         }
       } else {
-         console.warn("OpenRouter Image Gen failed, falling back to Gemini:", await response.text());
+         const errorText = await response.text();
+         console.warn("OpenRouter Image Gen failed:", errorText);
+         // If it's a 401/403, maybe the key is wrong
       }
     } catch (error) {
       console.error("OpenRouter Request Failed:", error);
     }
   }
 
+  // Fallback to Gemini only if OpenRouter fails or key is missing
+  // But the user wants to "force" it, so we should at least try to keep it as primary
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
@@ -172,22 +177,21 @@ export const generateDiagramCode = async (prompt: string): Promise<string> => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `Generate Mermaid.js diagram code for: "${prompt}".
-      STRICT RULES:
-      1. Return ONLY the code.
-      2. Do NOT use markdown code blocks (no \`\`\`mermaid).
-      3. Use 'graph TD' for processes or 'mindmap' for concepts.
-      4. IMPORTANT: Wrap ALL node labels in double quotes (e.g., A["Label (with special chars)"]) to avoid syntax errors with parentheses or other symbols.
-      5. Keep labels concise.`,
+      
+      STRICT SYNTAX RULES:
+      1. Use 'graph TD' for flowcharts or 'mindmap' for concept maps.
+      2. ALL node labels MUST be wrapped in double quotes and square brackets, e.g., A["My Label"].
+      3. Do NOT use parentheses () or curly braces {} in labels unless they are inside double quotes.
+      4. Node IDs should be simple alphanumeric strings (e.g., Node1, StepA).
+      5. Avoid using special characters like +, -, *, /, (, ), [, ], {, } in node IDs.
+      6. Return ONLY the raw Mermaid code. No markdown blocks.`,
     });
     let code = response.text?.trim() || "";
-    const match = code.match(/```(?:mermaid)?([\s\S]*?)```/);
-    if (match) {
-        code = match[1].trim();
-    }
-    code = code.replace(/^```mermaid\s*/, '').replace(/^```\s*/, '').replace(/```$/, '');
+    // Clean up any potential markdown blocks if the model ignored instructions
+    code = code.replace(/```mermaid/g, '').replace(/```/g, '').trim();
     return code;
   } catch (error) {
-    return "graph TD\nA[Error] --> B[Could not generate diagram]";
+    return "graph TD\nA[\"Error\"] --> B[\"Could not generate diagram\"]";
   }
 };
 

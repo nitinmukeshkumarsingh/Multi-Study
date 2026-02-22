@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Wand2, Download, X, Network, ImageIcon, ZoomIn, Loader2, Info, LayoutTemplate } from 'lucide-react';
 import { generateDiagramCode, generateDiagramImage } from '../services/geminiService';
+import { getOpenRouterApiKey } from '../services/storage';
 import mermaid from 'mermaid';
 
 mermaid.initialize({
@@ -33,12 +34,42 @@ export const DiagramGenerator: React.FC = () => {
           diagramRef.current!.innerHTML = '';
           const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
           
-          // Basic sanitization: Wrap labels in quotes if they contain parentheses and aren't already quoted
+          // --- ROBUST SANITIZATION ---
           let sanitizedCode = mermaidCode;
-          // This regex looks for [Label(WithParens)] and turns it into ["Label(WithParens)"]
-          // It's a bit naive but handles the most common failure case reported
-          sanitizedCode = sanitizedCode.replace(/\[([^"\]]*\([^"\]]*\)[^"\]]*)\]/g, '["$1"]');
-          sanitizedCode = sanitizedCode.replace(/\(([^"\]]*\([^"\]]*\)[^"\]]*)\)/g, '("$1")');
+          
+          // 1. Ensure it starts with a valid type
+          if (!sanitizedCode.trim().startsWith('graph') && !sanitizedCode.trim().startsWith('mindmap') && !sanitizedCode.trim().startsWith('sequenceDiagram')) {
+            sanitizedCode = 'graph TD\n' + sanitizedCode;
+          }
+
+          // 2. Fix unquoted labels with special characters (especially parentheses)
+          // This regex finds patterns like ID[Label with (parens)] or ID(Label with [brackets])
+          // and ensures they are properly quoted if they aren't already.
+          
+          // Fix square brackets []
+          sanitizedCode = sanitizedCode.replace(/([a-zA-Z0-9_-]+)\[([^"\]]*[\(\)\{\}][^"\]]*)\]/g, '$1["$2"]');
+          // Fix parentheses ()
+          sanitizedCode = sanitizedCode.replace(/([a-zA-Z0-9_-]+)\(([^"\]]*[\(\)\{\}][^"\]]*)\)/g, '$1("$2")');
+          
+          // 3. Global cleanup of common breaking patterns
+          // If the model generated something like A[Label] --> B[Label(with parens)]
+          // we want to make sure the second one is B["Label(with parens)"]
+          
+          // 4. Final safety pass: if a line has a node ID followed by [ or ( but no quotes, and contains special chars, quote it.
+          const lines = sanitizedCode.split('\n');
+          const processedLines = lines.map(line => {
+            // Match node definitions like A[Label] or A(Label)
+            return line.replace(/([a-zA-Z0-9_-]+)(\[|\()([^"\]\)]+)(\]|\))/g, (match, id, start, label, end) => {
+              // If label contains special chars and isn't quoted, quote it
+              if (/[\(\)\{\}\[\]\+\-\*\/]/.test(label) && !label.startsWith('"')) {
+                const quoteStart = start === '[' ? '[' : '(';
+                const quoteEnd = end === ']' ? ']' : ')';
+                return `${id}${quoteStart}"${label}"${quoteEnd}`;
+              }
+              return match;
+            });
+          });
+          sanitizedCode = processedLines.join('\n');
 
           // Render the new diagram
           const { svg } = await mermaid.render(id, sanitizedCode);
@@ -49,7 +80,20 @@ export const DiagramGenerator: React.FC = () => {
           }
         } catch (err) {
           console.error("Mermaid Render Error:", err);
-          setError("Failed to visualize the logic. Try a simpler prompt.");
+          // SECOND CHANCE: Extreme sanitization - strip all special chars from labels
+          try {
+            const id = `mermaid-retry-${Math.random().toString(36).substr(2, 9)}`;
+            let extremeSanitized = mermaidCode.replace(/[\(\)\{\}]/g, ''); 
+            const { svg } = await mermaid.render(id, extremeSanitized);
+            if (diagramRef.current) {
+              diagramRef.current.innerHTML = svg;
+              setSvgContent(svg);
+              return;
+            }
+          } catch (retryErr) {
+            console.error("Mermaid Retry Failed:", retryErr);
+          }
+          setError("Failed to visualize the logic. Try a simpler prompt or switch to Illustration mode.");
         }
       };
       render();
@@ -135,9 +179,14 @@ export const DiagramGenerator: React.FC = () => {
             placeholder={type === 'logic' ? "e.g. 'Photosynthesis process flowchart'" : "e.g. 'Anatomy of a human heart with labels'"}
           />
           <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
-             <div className="flex gap-2">
-                <button onClick={() => setPrompt("Nitrogen cycle")} className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-bold text-slate-400">Nitrogen Cycle</button>
-                <button onClick={() => setPrompt("Human Eye structure")} className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-bold text-slate-400">Human Eye</button>
+             <div className="flex flex-col gap-1">
+                <div className="flex gap-2">
+                    <button onClick={() => setPrompt("Nitrogen cycle")} className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-bold text-slate-400">Nitrogen Cycle</button>
+                    <button onClick={() => setPrompt("Human Eye structure")} className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-bold text-slate-400">Human Eye</button>
+                </div>
+                {type === 'illustration' && !getOpenRouterApiKey() && (
+                    <p className="text-[9px] text-amber-500/70 font-medium">Add OpenRouter key in Settings for Flux diagrams</p>
+                )}
              </div>
              <button 
                 onClick={handleGenerate}
