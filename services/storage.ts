@@ -7,7 +7,6 @@ const KEYS = {
   NOTES: 'lumina_notes',
   SETTINGS: 'lumina_settings',
   API_KEY: 'lumina_custom_api_key',
-  OPENROUTER_KEY: 'lumina_openrouter_key',
   TIMER: 'lumina_timer_state'
 };
 
@@ -45,12 +44,9 @@ export const saveCustomApiKey = (key: string) => {
   localStorage.setItem(KEYS.API_KEY, key);
 };
 
-export const getOpenRouterApiKey = (): string => {
-  return localStorage.getItem(KEYS.OPENROUTER_KEY) || '';
-};
-
-export const saveOpenRouterApiKey = (key: string) => {
-  localStorage.setItem(KEYS.OPENROUTER_KEY, key);
+export const getActiveApiKey = (): string => {
+  const custom = getCustomApiKey();
+  return custom || (process.env.GEMINI_API_KEY || '');
 };
 
 export const getStats = (): UserStats => {

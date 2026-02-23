@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Save, User, BookOpen, Key, ArrowLeft, Check, ExternalLink, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { UserSettings } from '../types';
-import { getSettings, saveSettings, getCustomApiKey, saveCustomApiKey, getOpenRouterApiKey, saveOpenRouterApiKey } from '../services/storage';
+import { getSettings, saveSettings, getCustomApiKey, saveCustomApiKey } from '../services/storage';
 
 interface SettingsProps {
   onBack: () => void;
@@ -11,16 +11,13 @@ interface SettingsProps {
 export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
   const [settings, setSettings] = useState<UserSettings>(getSettings());
   const [customKey, setCustomKey] = useState(getCustomApiKey());
-  const [openRouterKey, setOpenRouterKey] = useState(getOpenRouterApiKey());
   const [showKey, setShowKey] = useState(false);
-  const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     saveSettings(settings);
     saveCustomApiKey(customKey.trim());
-    saveOpenRouterApiKey(openRouterKey.trim());
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -161,32 +158,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
             <p className="text-[10px] text-slate-500 px-1 leading-relaxed">
                 Enter your personal Gemini API key here. 
                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline ml-1">Get a key</a>
-            </p>
-        </div>
-
-        {/* OpenRouter Key Input */}
-        <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">OpenRouter API Key (For FLUX Diagrams)</label>
-            <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4 relative group focus-within:ring-1 focus-within:ring-indigo-500/50">
-                <ShieldCheck size={18} className="text-indigo-400 mr-3" />
-                <input 
-                    type={showOpenRouterKey ? "text" : "password"}
-                    value={openRouterKey}
-                    onChange={(e) => setOpenRouterKey(e.target.value)}
-                    className="w-full bg-transparent py-3 text-white focus:outline-none text-sm font-mono placeholder-slate-700"
-                    placeholder="sk-or-..."
-                    autoComplete="off"
-                />
-                <button 
-                    onClick={() => setShowOpenRouterKey(!showOpenRouterKey)} 
-                    className="p-2 text-slate-600 hover:text-white transition-colors"
-                >
-                    {showOpenRouterKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-            </div>
-            <p className="text-[10px] text-slate-500 px-1 leading-relaxed">
-                Required for generating high-quality diagrams using FLUX models.
-                <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline ml-1">Get a key</a>
             </p>
         </div>
 

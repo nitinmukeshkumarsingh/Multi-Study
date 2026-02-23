@@ -1,14 +1,15 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Flashcard, Note } from "../types";
-import { getSettings, getCustomApiKey, getOpenRouterApiKey } from "./storage";
+import { getSettings, getCustomApiKey, getActiveApiKey } from "./storage";
 
 const getAI = () => {
-  const apiKey = getCustomApiKey();
-  if (!apiKey) {
-    console.warn("Gemini API Key is missing. Please set it in Settings.");
+  const apiKey = getActiveApiKey();
+  
+  if (!apiKey || apiKey === '') {
+    throw new Error("Gemini API Key is missing. Please add it in Settings! ⚠️");
   }
-  return new GoogleGenAI({ apiKey: apiKey || '' });
+  return new GoogleGenAI({ apiKey });
 };
 
 // Helper to generate IDs
@@ -85,26 +86,39 @@ export const generateFlashcards = async (
     const contextStr = getContextPrompt();
 
     if (source === 'topic') {
-      contents = `Generate ${count} study flashcards about "${payload}". 
+      contents = `Generate ${count} bite-sized, high-impact study flashcards about "${payload}". 
+      
       STRICT RULES:
-      - The 'front' should be a clear, meaningful question or term.
-      - The 'back' should be a concise, "normal" flashcard answer (1-2 sentences or a few bullet points). Avoid long paragraphs.
+      - LENGTH: Keep it SHORT and PUNCHY. Max 15 words for the front, max 30 words for the back.
+      - FRONT: A single clear concept, question, or term. Use 1-2 relevant emojis. 🧠
+      - BACK: The core answer only. Use bullet points or bold text for key terms. No fluff. ✨
+      - INTERACTIVE: Frame questions to spark curiosity (e.g., "What's the trick to remember...?").
+      - FORMATTING: Use Markdown and LaTeX ($...$) for formulas.
+      - GOAL: Fit perfectly on a mobile flashcard without scrolling.
       ${contextStr}`;
     } else if (source === 'image') {
-      contents = [{ inlineData: { data: payload, mimeType: mimeType || 'image/jpeg' } }, { text: `Extract key educational concepts from this image and generate ${count} study flashcards. 
+      contents = [{ inlineData: { data: payload, mimeType: mimeType || 'image/jpeg' } }, { text: `Analyze this image and generate ${count} bite-sized study flashcards based on its content. 
+      
       STRICT RULES:
-      - The 'front' should be a clear, meaningful question or term.
-      - The 'back' should be a concise, "normal" flashcard answer (1-2 sentences or a few bullet points). Avoid long paragraphs.
+      - LENGTH: Keep it SHORT and PUNCHY. Max 15 words for the front, max 30 words for the back.
+      - FRONT: A single clear concept, question, or term. Use 1-2 relevant emojis. 📸
+      - BACK: The core answer only. Use bullet points or bold text for key terms. No fluff. ✨
+      - FORMATTING: Use Markdown and LaTeX ($...$) for formulas.
+      - GOAL: Fit perfectly on a mobile flashcard without scrolling.
       ${contextStr}` }];
     } else if (source === 'youtube') {
-      contents = `Search for the content of the following YouTube video and generate ${count} flashcards: ${payload}. 
+      contents = `Search for the content of the following YouTube video and generate ${count} bite-sized study flashcards: ${payload}. 
+      
       STRICT RULES:
-      - The 'front' should be a clear, meaningful question or term.
-      - The 'back' should be a concise, "normal" flashcard answer (1-2 sentences or a few bullet points). Avoid long paragraphs.
+      - LENGTH: Keep it SHORT and PUNCHY. Max 15 words for the front, max 30 words for the back.
+      - FRONT: A single clear concept, question, or term. Use 1-2 relevant emojis. 🎥
+      - BACK: The core answer only. Use bullet points or bold text for key terms. No fluff. ✨
+      - FORMATTING: Use Markdown and LaTeX ($...$) for formulas.
+      - GOAL: Fit perfectly on a mobile flashcard without scrolling.
       ${contextStr}`;
       config.tools = [{ googleSearch: {} }];
     }
-    const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents, config });
+    const response = await ai.models.generateContent({ model: "gemini-flash-lite-latest", contents, config });
     const rawData = response.text ? JSON.parse(response.text) : [];
     return rawData.map((item: any) => ({ id: generateId(), front: item.front, back: item.back, mastered: false }));
   } catch (error) {
@@ -113,69 +127,11 @@ export const generateFlashcards = async (
   }
 };
 
-export const generateDiagramImage = async (prompt: string): Promise<string | null> => {
-  const openRouterKey = getOpenRouterApiKey();
-
-  // Primary Path: OpenRouter Flux
-  if (openRouterKey) {
-    try {
-      const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": window.location.origin,
-          "X-Title": "MUKTI Study"
-        },
-        body: JSON.stringify({
-          model: "black-forest-labs/flux-1-schnell",
-          prompt: `Create a clean, high-contrast, educational diagram explaining: ${prompt}. Use a white background, clear labels, and a professional textbook illustration style. Ensure all text is legible.`,
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data && data.data.length > 0 && data.data[0].url) {
-           return data.data[0].url;
-        }
-      } else {
-         const errorText = await response.text();
-         console.warn("OpenRouter Image Gen failed:", errorText);
-         // If it's a 401/403, maybe the key is wrong
-      }
-    } catch (error) {
-      console.error("OpenRouter Request Failed:", error);
-    }
-  }
-
-  // Fallback to Gemini only if OpenRouter fails or key is missing
-  // But the user wants to "force" it, so we should at least try to keep it as primary
-  const ai = getAI();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: `Create a clean, high-contrast, educational diagram explaining: ${prompt}. Use a white background, clear labels, and a professional textbook illustration style.` }]
-      },
-      config: { imageConfig: { aspectRatio: "1:1" } }
-    });
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error("Image generation error:", error);
-    return null;
-  }
-};
-
 export const generateDiagramCode = async (prompt: string): Promise<string> => {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-flash-lite-latest",
       contents: `Generate Mermaid.js diagram code for: "${prompt}".
       
       STRICT SYNTAX RULES:
@@ -200,7 +156,7 @@ export const enhanceNoteContent = async (content: string): Promise<string> => {
   if (!content) return "";
   try {
     const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-lite-latest",
         contents: `You are MUKTI AI, an elite study material designer. Your task is to transform the provided raw notes into a "Visual Study Guide" that is eye-catching, highly structured, and easy to memorize.
         STRICT RULE: Return ONLY the enhanced, structured content. Do NOT include any conversational text, introductions, or conclusions.
         
@@ -215,7 +171,7 @@ export const processImageToNote = async (base64Data: string, mimeType: string): 
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-flash-lite-latest",
       contents: [{ inlineData: { data: base64Data, mimeType } }, { text: "Extract text and format as structured study notes JSON." }],
       config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ["title", "content"] } }
     });
@@ -227,7 +183,7 @@ export const solveProblemFromImage = async (base64Data: string, mimeType: string
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-flash-lite-latest",
       contents: [
         { inlineData: { data: base64Data, mimeType } }, 
         { text: `Academic problem solver context: ${context || ''}` }
@@ -239,13 +195,43 @@ export const solveProblemFromImage = async (base64Data: string, mimeType: string
 
 export const getChatResponseStream = async (history: any[], message: string) => {
   const ai = getAI();
-  const chat = ai.chats.create({ 
-    model: "gemini-2.5-flash", 
-    history, 
-    config: { 
-      systemInstruction: getContextPrompt(),
-      tools: [{ googleSearch: {} }]
-    } 
+  
+  // Ensure history alternates correctly and starts with 'user'
+  const contents = [...history];
+  
+  // Filter out any messages that don't have text or parts
+  const validContents = contents.filter(c => c.parts && c.parts.length > 0 && c.parts[0].text);
+  
+  if (validContents.length > 0 && validContents[0].role === 'model') {
+    validContents.shift(); // Remove initial model message if it's the first one
+  }
+  
+  // Add the current message
+  validContents.push({
+    role: 'user',
+    parts: [{ text: message }]
   });
-  return await chat.sendMessageStream({ message });
+
+  try {
+    return await ai.models.generateContentStream({
+      model: "gemini-flash-lite-latest",
+      contents: validContents,
+      config: {
+        systemInstruction: getContextPrompt(),
+        tools: [{ googleSearch: {} }]
+      }
+    });
+  } catch (error: any) {
+    // If googleSearch tool fails (e.g. not supported by key), try without it
+    if (error?.message?.includes('tool') || error?.message?.includes('search')) {
+      return await ai.models.generateContentStream({
+        model: "gemini-flash-lite-latest",
+        contents: validContents,
+        config: {
+          systemInstruction: getContextPrompt()
+        }
+      });
+    }
+    throw error;
+  }
 };

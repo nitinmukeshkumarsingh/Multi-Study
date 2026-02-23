@@ -4,6 +4,7 @@ import { Camera, Image as ImageIcon, Sparkles, ArrowLeft, RefreshCw, ChevronRigh
 import { solveProblemFromImage } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 
 export const ProblemSolver: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -138,7 +139,7 @@ export const ProblemSolver: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </div>
             </div>
             <div className="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed">
-              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+              <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                 {solution}
               </ReactMarkdown>
             </div>

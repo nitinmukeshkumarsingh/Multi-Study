@@ -5,6 +5,7 @@ import { ChatMessage } from '../types';
 import { getChatResponseStream } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 
 export const ChatAssistant: React.FC = () => {
@@ -81,9 +82,23 @@ export const ChatAssistant: React.FC = () => {
             );
           }
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Chat error", error);
         setIsLoading(false);
+        
+        let errorMessage = 'I encountered an error. Please check your API key in Settings! ⚠️';
+        const errorStr = JSON.stringify(error);
+        
+        if (errorStr.includes('429') || error?.status === 429 || error?.message?.includes('429')) {
+            errorMessage = 'Quota exceeded! 🚨 The free AI limit has been reached. Please wait a moment or add your own Gemini API Key in Settings to continue studying without limits. 📚✨';
+        }
+
+        setMessages(prev => [...prev, { 
+            id: Date.now().toString(), 
+            role: 'model', 
+            text: errorMessage, 
+            timestamp: Date.now() 
+        }]);
     } finally {
         setIsStreaming(false);
     }
@@ -117,7 +132,12 @@ export const ChatAssistant: React.FC = () => {
             >
               {msg.role === 'model' ? (
                  <div className="prose prose-invert prose-sm max-w-none">
-                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.text}</ReactMarkdown>
+                     <ReactMarkdown 
+                        remarkPlugins={[remarkMath, remarkGfm]} 
+                        rehypePlugins={[rehypeKatex]}
+                     >
+                        {msg.text}
+                     </ReactMarkdown>
                      {!msg.text && (
                         <div className="flex gap-1.5 py-2 items-center">
                             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]" />

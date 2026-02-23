@@ -4,6 +4,10 @@ import { RefreshCw, Check, X, Plus, Shuffle, Repeat, ArrowRightLeft, Trash2, Sav
 import { Flashcard, Deck, UserStats } from '../types';
 import { generateFlashcards } from '../services/geminiService';
 import { getStats, updateStats, saveDeck, getDecks, deleteDeck } from '../services/storage';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
 
 type StudyMode = 'standard' | 'shuffle' | 'spaced';
 type ViewMode = 'study' | 'library' | 'manage';
@@ -405,20 +409,30 @@ export const Flashcards: React.FC = () => {
                         {/* Front */}
                         <div className="absolute inset-0 backface-hidden bg-[#1e293b] rounded-[40px] border border-white/10 shadow-2xl p-10 flex flex-col items-center justify-center text-center select-none">
                             <span className="absolute top-8 left-10 text-[10px] font-black text-cyan-500 uppercase tracking-[0.2em] bg-cyan-500/10 px-3 py-1.5 rounded-full">Concept</span>
-                            <div className="max-h-[70%] overflow-y-auto w-full custom-scrollbar flex items-center justify-center">
-                                <h3 className={`font-bold text-slate-100 leading-snug ${currentCard.front.length > 50 ? 'text-lg' : 'text-2xl'}`}>
-                                    {currentCard.front}
-                                </h3>
+                            <div className="max-h-[70%] overflow-y-auto w-full custom-scrollbar flex flex-col items-center justify-center">
+                                <div className="prose prose-invert prose-sm max-w-none w-full text-center">
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkMath, remarkGfm]} 
+                                        rehypePlugins={[rehypeKatex]}
+                                    >
+                                        {currentCard.front}
+                                    </ReactMarkdown>
+                                </div>
                             </div>
                             <p className="absolute bottom-10 text-[9px] text-slate-600 font-bold uppercase tracking-widest">Tap to flip • Swipe to mark</p>
                         </div>
                         {/* Back */}
                         <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] rounded-[40px] border border-cyan-500/20 shadow-2xl p-10 flex flex-col items-center justify-center text-center select-none">
                             <span className="absolute top-8 left-10 text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1.5 rounded-full">Insight</span>
-                            <div className="max-h-[80%] overflow-y-auto w-full pr-2 custom-scrollbar flex items-center justify-center">
-                                <p className={`leading-relaxed font-medium text-slate-300 ${currentCard.back.length > 150 ? 'text-sm' : 'text-lg'}`}>
-                                    {currentCard.back}
-                                </p>
+                            <div className="max-h-[80%] overflow-y-auto w-full pr-2 custom-scrollbar flex flex-col items-center justify-center">
+                                <div className="prose prose-invert prose-sm max-w-none w-full text-center">
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkMath, remarkGfm]} 
+                                        rehypePlugins={[rehypeKatex]}
+                                    >
+                                        {currentCard.back}
+                                    </ReactMarkdown>
+                                </div>
                             </div>
                         </div>
                      </div>

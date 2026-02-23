@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Mic, MicOff, Camera, CameraOff, PhoneOff, Loader2, Sparkles, RefreshCcw, Volume2 } from 'lucide-react';
-import { getSettings } from '../services/storage';
+import { getSettings, getActiveApiKey } from '../services/storage';
 
 const decode = (base64: string) => {
   const binaryString = atob(base64);
@@ -66,7 +66,8 @@ export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
   const startSession = async (modeOverride?: 'user' | 'environment') => {
     setIsConnecting(true);
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getActiveApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const settings = getSettings();
     const mode = modeOverride || facingMode;
 
@@ -100,7 +101,7 @@ export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         callbacks: {
           onopen: () => {
             setIsConnecting(false);
