@@ -118,7 +118,7 @@ export const generateFlashcards = async (
       ${contextStr}`;
       config.tools = [{ googleSearch: {} }];
     }
-    const response = await ai.models.generateContent({ model: "gemini-flash-lite-latest", contents, config });
+    const response = await ai.models.generateContent({ model: "gemini-2.5-flash-lite-preview", contents, config });
     const rawData = response.text ? JSON.parse(response.text) : [];
     return rawData.map((item: any) => ({ id: generateId(), front: item.front, back: item.back, mastered: false }));
   } catch (error) {
@@ -131,7 +131,7 @@ export const generateDiagramCode = async (prompt: string): Promise<string> => {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-2.5-flash-lite-preview",
       contents: `Generate Mermaid.js diagram code for: "${prompt}".
       
       STRICT SYNTAX RULES:
@@ -156,7 +156,7 @@ export const enhanceNoteContent = async (content: string): Promise<string> => {
   if (!content) return "";
   try {
     const response = await ai.models.generateContent({
-        model: "gemini-flash-lite-latest",
+        model: "gemini-2.5-flash-lite-preview",
         contents: `You are MUKTI AI, an elite study material designer. Your task is to transform the provided raw notes into a "Visual Study Guide" that is eye-catching, highly structured, and easy to memorize.
         STRICT RULE: Return ONLY the enhanced, structured content. Do NOT include any conversational text, introductions, or conclusions.
         
@@ -171,7 +171,7 @@ export const processImageToNote = async (base64Data: string, mimeType: string): 
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-2.5-flash-lite-preview",
       contents: [{ inlineData: { data: base64Data, mimeType } }, { text: "Extract text and format as structured study notes JSON." }],
       config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ["title", "content"] } }
     });
@@ -183,7 +183,7 @@ export const solveProblemFromImage = async (base64Data: string, mimeType: string
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-2.5-flash-lite-preview",
       contents: [
         { inlineData: { data: base64Data, mimeType } }, 
         { text: `Academic problem solver context: ${context || ''}` }
@@ -214,7 +214,7 @@ export const getChatResponseStream = async (history: any[], message: string) => 
 
   try {
     return await ai.models.generateContentStream({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-2.5-flash-lite-preview",
       contents: validContents,
       config: {
         systemInstruction: getContextPrompt(),
@@ -225,7 +225,7 @@ export const getChatResponseStream = async (history: any[], message: string) => 
     // If googleSearch tool fails (e.g. not supported by key), try without it
     if (error?.message?.includes('tool') || error?.message?.includes('search')) {
       return await ai.models.generateContentStream({
-        model: "gemini-flash-lite-latest",
+        model: "gemini-2.5-flash-lite-preview",
         contents: validContents,
         config: {
           systemInstruction: getContextPrompt()

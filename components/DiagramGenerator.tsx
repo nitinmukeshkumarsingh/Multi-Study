@@ -130,7 +130,7 @@ export const DiagramGenerator: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4 pt-2 animate-in fade-in slide-in-from-right-4 duration-500 overflow-hidden">
+    <div className="flex flex-col h-full space-y-4 pt-2 pb-12 animate-in fade-in slide-in-from-right-4 duration-500 overflow-hidden">
       
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between px-1">

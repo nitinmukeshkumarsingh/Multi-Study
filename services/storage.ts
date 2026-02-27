@@ -188,11 +188,33 @@ export interface TimerState {
     isActive: boolean;
     targetTimestamp: number | null; // Null if paused, Epoch ms if running
     lastUpdated: number;
+    focusDuration?: number;
+    breakDuration?: number;
+    cycleDuration?: number;
+    cycleTimeLeft?: number | null;
+    cycleTargetTimestamp?: number | null;
+    focusAlarmUrl?: string | null;
+    breakAlarmUrl?: string | null;
+    cycleAlarmUrl?: string | null;
 }
 
 export const getTimerState = (): TimerState | null => {
     const stored = localStorage.getItem(KEYS.TIMER);
-    return stored ? JSON.parse(stored) : null;
+    if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+            ...parsed,
+            focusDuration: parsed.focusDuration || 25,
+            breakDuration: parsed.breakDuration || 5,
+            cycleDuration: parsed.cycleDuration || 0,
+            cycleTimeLeft: parsed.cycleTimeLeft !== undefined ? parsed.cycleTimeLeft : null,
+            cycleTargetTimestamp: parsed.cycleTargetTimestamp !== undefined ? parsed.cycleTargetTimestamp : null,
+            focusAlarmUrl: parsed.focusAlarmUrl || null,
+            breakAlarmUrl: parsed.breakAlarmUrl || null,
+            cycleAlarmUrl: parsed.cycleAlarmUrl || null
+        };
+    }
+    return null;
 };
 
 export const saveTimerState = (state: TimerState) => {

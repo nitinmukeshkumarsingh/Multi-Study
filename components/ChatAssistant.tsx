@@ -171,7 +171,7 @@ export const ChatAssistant: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 bg-[#0b1221] pt-3 pb-4">
+      <div className="flex-shrink-0 bg-[#0b1221] pt-3 pb-8">
           <div className="flex items-center gap-2 max-w-md mx-auto relative">
                 <div className="flex-1 bg-[#1e293b] rounded-[28px] border border-white/10 flex items-center px-5 py-1 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all shadow-xl">
                     <input

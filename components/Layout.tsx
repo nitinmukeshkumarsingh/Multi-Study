@@ -66,16 +66,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
   const showNav = currentView !== 'video-tutor';
 
   return (
-    <div className="h-screen w-screen bg-[#0b1221] text-white font-sans overflow-hidden flex justify-center selection:bg-cyan-500/30">
+    <div className="h-[100dvh] w-screen bg-[#0b1221] text-white font-sans overflow-hidden flex justify-center selection:bg-cyan-500/30">
       
       {/* Background Ambient Glow */}
       <div className="fixed top-0 left-0 right-0 h-screen bg-gradient-to-b from-blue-900/10 via-transparent to-transparent pointer-events-none z-0" />
 
-      <main className="relative z-10 w-full max-w-md h-screen flex flex-col bg-[#0b1221] shadow-[0_0_100px_rgba(0,0,0,0.5)] border-x border-white/5">
+      <main className="relative z-10 w-full max-w-md h-full flex flex-col bg-[#0b1221] shadow-[0_0_100px_rgba(0,0,0,0.5)] border-x border-white/5">
         
         {/* Persistent Header */}
         {showHeader && (
-          <header className="flex-shrink-0 flex items-center justify-between px-6 py-5 bg-[#0b1221]/80 backdrop-blur-2xl border-b border-white/5 z-50">
+          <header className="flex-shrink-0 flex items-center justify-between px-6 pt-12 pb-4 bg-[#0b1221]/80 backdrop-blur-2xl border-b border-white/5 z-50">
               <div className="flex flex-col">
                   <h1 className="text-xl font-bold tracking-tight text-white leading-tight">
                       {getGreeting()}, <span className="text-cyan-100">{settings.name}</span>
@@ -103,7 +103,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
 
         {/* Full-width Attached Native Bottom Navigation */}
         {showNav && (
-          <nav className="flex-shrink-0 w-full h-20 bg-[#0f172a]/90 backdrop-blur-3xl border-t border-white/10 px-4 flex items-center justify-between z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
+          <nav className="flex-shrink-0 w-full bg-[#0f172a]/90 backdrop-blur-3xl border-t border-white/10 px-4 pt-3 pb-8 flex items-center justify-between z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
             <NavItem 
               icon={LayoutDashboard} 
               label="Home" 
