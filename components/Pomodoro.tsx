@@ -62,32 +62,31 @@ export const Pomodoro: React.FC = () => {
   return (
     <div className="h-full flex flex-col items-center justify-between pt-2 pb-10 animate-in fade-in zoom-in-95 duration-500 relative">
         
-        {/* Header & Config Button */}
-        <div className="w-full flex justify-end items-center px-4 mt-2 z-20">
-            <button 
-                onClick={() => setShowConfig(true)}
-                className="p-2 bg-[#1e293b] rounded-full text-slate-400 hover:text-white transition-colors border border-white/5 shadow-lg"
-            >
-                <SlidersHorizontal size={20} />
-            </button>
-        </div>
-
-        {/* Mode Switcher */}
-        <div className="flex-shrink-0 z-20">
+        {/* Header: Mode Switcher & Config Button */}
+        <div className="w-full flex items-center justify-between px-4 mt-2 z-20">
+            {/* Mode Switcher */}
             <div className="bg-[#1e293b] p-1 rounded-2xl flex gap-1 border border-white/5 shadow-lg">
                 <button
                     onClick={() => switchMode('focus')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${mode === 'focus' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/50' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${mode === 'focus' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/50' : 'text-slate-400 hover:text-slate-200'}`}
                 >
                     <Brain size={14} /> Focus
                 </button>
                 <button
                     onClick={() => switchMode('break')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${mode === 'break' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${mode === 'break' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50' : 'text-slate-400 hover:text-slate-200'}`}
                 >
                     <Coffee size={14} /> Break
                 </button>
             </div>
+
+            {/* Config Button */}
+            <button 
+                onClick={() => setShowConfig(true)}
+                className="p-2.5 bg-[#1e293b] rounded-full text-slate-400 hover:text-white transition-colors border border-white/5 shadow-lg active:scale-95"
+            >
+                <SlidersHorizontal size={20} />
+            </button>
         </div>
 
         {/* Timer Display */}
