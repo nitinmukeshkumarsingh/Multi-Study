@@ -45,7 +45,7 @@ const encode = (bytes: Uint8Array) => {
 export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  // hasStarted state removed as we auto-start
   const [error, setError] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
@@ -269,17 +269,12 @@ export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   useEffect(() => {
-    // We no longer start automatically to ensure user gesture
+    startSession();
     return () => {
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     };
   }, []);
-
-  const handleInitialStart = () => {
-    setHasStarted(true);
-    startSession();
-  };
 
   return (
     <div className="fixed inset-0 z-[60] bg-[#0b1221] flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-500 overflow-hidden">
@@ -291,42 +286,11 @@ export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-[conic-gradient(from_0deg_at_50%_50%,transparent_0%,rgba(6,182,212,0.1)_25%,transparent_50%)] animate-[spin_20s_linear_infinite]" />
       </div>
 
-      {!hasStarted ? (
-        <div className="relative z-50 flex flex-col items-center text-center max-w-md p-8 glass-panel rounded-[32px] border-white/10 shadow-2xl">
-          <div className="w-20 h-20 bg-gradient-to-tr from-cyan-400 to-blue-600 rounded-3xl flex items-center justify-center shadow-lg mb-6 animate-bounce">
-            <Sparkles size={40} className="text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-4">Ready for your Session?</h2>
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-          <p className="text-slate-400 mb-8 leading-relaxed">
-            MUKTI AI is ready to help you study through a real-time video call. 
-            We'll need access to your camera and microphone.
-          </p>
-          <div className="flex flex-col w-full gap-3">
-            <button 
-              onClick={handleInitialStart}
-              className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-2xl transition-all active:scale-95 shadow-lg shadow-cyan-500/20"
-            >
-              Start Video Tutor
-            </button>
-            <button 
-              onClick={onBack}
-              className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-medium rounded-2xl transition-all"
-            >
-              Maybe Later
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Main Video Window - Fixed overflow and layout */
-        <div className={`relative w-full max-w-lg h-[80vh] sm:h-[75vh] max-h-[700px] rounded-[40px] overflow-hidden bg-[#1e293b] shadow-2xl border transition-all duration-500 flex flex-col ${isAiSpeaking ? 'border-cyan-500/50 shadow-cyan-950/50 scale-[1.01]' : 'border-white/10'}`}>
-          
-          {/* Tutor Info Overlay */}
-          <div className="absolute top-6 left-6 z-30 flex items-center gap-3">
+      {/* Main Video Window - Fixed overflow and layout */}
+      <div className={`relative w-full max-w-lg h-[80vh] sm:h-[75vh] max-h-[700px] rounded-[40px] overflow-hidden bg-[#1e293b] shadow-2xl border transition-all duration-500 flex flex-col ${isAiSpeaking ? 'border-cyan-500/50 shadow-cyan-950/50 scale-[1.01]' : 'border-white/10'}`}>
+        
+        {/* Tutor Info Overlay */}
+        <div className="absolute top-6 left-6 z-30 flex items-center gap-3">
             <div className={`w-12 h-12 bg-gradient-to-tr from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg transition-transform duration-500 ${isAiSpeaking ? 'scale-110 rotate-3' : ''}`}>
               {isAiSpeaking ? <Volume2 size={24} className="text-white animate-pulse" /> : <Sparkles size={24} className="text-white" />}
             </div>
@@ -416,7 +380,6 @@ export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
              </button>
           </div>
         </div>
-      )}
 
       <p className="mt-8 text-slate-600 text-[10px] font-bold uppercase tracking-[0.4em] text-center relative z-10 hidden sm:block">
         Neural Engine Powered by MUKTI v2.5
