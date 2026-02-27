@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { getTimerState, saveTimerState } from '../../services/storage';
+import { saveAudio, getAudio, deleteAudio } from '../../services/audioDb';
 
 interface TimerContextType {
   timeLeft: number;
@@ -257,14 +258,18 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const saved = getTimerState();
+    
+    // Load audio from IndexedDB
+    getAudio('focusAlarmUrl').then(url => setFocusAlarmUrl(url));
+    getAudio('breakAlarmUrl').then(url => setBreakAlarmUrl(url));
+    getAudio('cycleAlarmUrl').then(url => setCycleAlarmUrl(url));
+
     if (saved) {
       setMode(saved.mode);
       setFocusDuration(saved.focusDuration || 25);
       setBreakDuration(saved.breakDuration || 5);
       setCycleDuration(saved.cycleDuration || 0);
-      setFocusAlarmUrl(saved.focusAlarmUrl || null);
-      setBreakAlarmUrl(saved.breakAlarmUrl || null);
-      setCycleAlarmUrl(saved.cycleAlarmUrl || null);
+      // Removed localStorage loading for alarms
       
       const currentInitialTime = saved.mode === 'focus' ? (saved.focusDuration || 25) * 60 : (saved.breakDuration || 5) * 60;
       setInitialTime(currentInitialTime);
@@ -298,6 +303,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Sync state to storage whenever it changes (excluding audio URLs)
   useEffect(() => {
     const state = {
       mode,
@@ -310,12 +316,37 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       cycleDuration,
       cycleTimeLeft,
       cycleTargetTimestamp: (isActive && cycleTimeLeft !== null) ? Date.now() + (cycleTimeLeft * 1000) : null,
-      focusAlarmUrl,
-      breakAlarmUrl,
-      cycleAlarmUrl
+      focusAlarmUrl: null,
+      breakAlarmUrl: null,
+      cycleAlarmUrl: null
     };
     saveTimerState(state);
-  }, [mode, timeLeft, isActive, focusDuration, breakDuration, cycleDuration, cycleTimeLeft, focusAlarmUrl, breakAlarmUrl, cycleAlarmUrl]);
+  }, [mode, timeLeft, isActive, focusDuration, breakDuration, cycleDuration, cycleTimeLeft]);
+
+  // Sync audio URLs to IndexedDB
+  useEffect(() => {
+    if (focusAlarmUrl) {
+      saveAudio('focusAlarmUrl', focusAlarmUrl).catch(e => console.error("Failed to save focus alarm", e));
+    } else {
+      deleteAudio('focusAlarmUrl').catch(e => console.error("Failed to delete focus alarm", e));
+    }
+  }, [focusAlarmUrl]);
+
+  useEffect(() => {
+    if (breakAlarmUrl) {
+      saveAudio('breakAlarmUrl', breakAlarmUrl).catch(e => console.error("Failed to save break alarm", e));
+    } else {
+      deleteAudio('breakAlarmUrl').catch(e => console.error("Failed to delete break alarm", e));
+    }
+  }, [breakAlarmUrl]);
+
+  useEffect(() => {
+    if (cycleAlarmUrl) {
+      saveAudio('cycleAlarmUrl', cycleAlarmUrl).catch(e => console.error("Failed to save cycle alarm", e));
+    } else {
+      deleteAudio('cycleAlarmUrl').catch(e => console.error("Failed to delete cycle alarm", e));
+    }
+  }, [cycleAlarmUrl]);
 
   useEffect(() => {
     let interval: any = null;
