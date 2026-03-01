@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Sparkles } from 'lucide-react';
 import { ChatMessage } from '../types';
+import { preprocessMath } from '../src/utils/math';
 import { getChatResponseStream } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -155,6 +156,9 @@ export const ChatAssistant: React.FC = () => {
                          let displayReasoning = msg.reasoning || "";
                          let displayText = msg.text || "";
 
+                         // Pre-process math delimiters to ensure remark-math catches them
+                         displayText = preprocessMath(displayText);
+
                          const thinkMatch = displayText.match(/<think>([\s\S]*?)(?:<\/think>|$)/);
                          if (thinkMatch) {
                              displayReasoning += (displayReasoning ? "\n" : "") + thinkMatch[1];
@@ -185,7 +189,7 @@ export const ChatAssistant: React.FC = () => {
                                  )}
 
                                  {displayText && (
-                                     <div className="overflow-x-auto no-scrollbar">
+                                     <div className="overflow-x-auto no-scrollbar handwritten-math">
                                          <ReactMarkdown 
                                             remarkPlugins={[remarkMath, remarkGfm]} 
                                             rehypePlugins={[rehypeKatex]}

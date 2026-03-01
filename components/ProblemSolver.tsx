@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Image as ImageIcon, Sparkles, ArrowLeft, RefreshCw, ChevronRight, Calculator, Loader2, X } from 'lucide-react';
 import { solveProblemFromImage } from '../services/geminiService';
+import { preprocessMath } from '../src/utils/math';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -138,9 +139,9 @@ export const ProblemSolver: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Step-by-step verified</p>
               </div>
             </div>
-            <div className="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed">
+            <div className="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed handwritten-math">
               <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                {solution}
+                {preprocessMath(solution)}
               </ReactMarkdown>
             </div>
             

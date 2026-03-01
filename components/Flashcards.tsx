@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Check, X, Plus, Shuffle, Repeat, ArrowRightLeft, Trash2, Save, Wand2, ArrowRight, BarChart3, Flame, Trophy, Calendar, Camera, Link as LinkIcon, Type as TypeIcon, Image as ImageIcon, Loader2, Edit2, ChevronLeft, LayoutGrid, MoreVertical, Layers } from 'lucide-react';
 import { Flashcard, Deck, UserStats } from '../types';
+import { preprocessMath } from '../src/utils/math';
 import { generateFlashcards } from '../services/geminiService';
 import { getStats, updateStats, saveDeck, getDecks, deleteDeck } from '../services/storage';
 import ReactMarkdown from 'react-markdown';
@@ -223,20 +224,22 @@ export const Flashcards: React.FC = () => {
   };
 
   // Swipe Handlers
-  const handleDragStart = (e: React.TouchEvent | React.MouseEvent) => {
+  const handleDragStart = (e: React.PointerEvent) => {
+    e.stopPropagation();
     setIsDragging(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    dragStartX.current = clientX;
+    dragStartX.current = e.clientX;
   };
 
-  const handleDragMove = (e: React.TouchEvent | React.MouseEvent) => {
+  const handleDragMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const offset = clientX - dragStartX.current;
+    e.stopPropagation();
+    const offset = e.clientX - dragStartX.current;
     setSwipeOffset(offset);
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    e.stopPropagation();
     setIsDragging(false);
     const threshold = 100; // px to trigger swipe
     if (swipeOffset > threshold) {
@@ -337,7 +340,7 @@ export const Flashcards: React.FC = () => {
       )}
 
       {viewMode === 'study' && (
-        <div className="flex-1 flex flex-col p-1 animate-in zoom-in-95 duration-300">
+        <div className="flex-1 flex flex-col p-1 animate-in zoom-in-95 duration-300" data-no-swipe="true">
            {/* Study Controls */}
            <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
               <button onClick={()=>setStudyMode('standard')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 whitespace-nowrap transition-all ${studyMode === 'standard' ? 'bg-cyan-600 text-white shadow-lg' : 'bg-white/5 text-slate-500'}`}><ArrowRightLeft size={14}/> Linear</button>
@@ -362,13 +365,10 @@ export const Flashcards: React.FC = () => {
                   {/* Card Wrapper for Swipe */}
                   <div 
                     className="relative w-full aspect-[4/5] max-h-[450px] touch-none"
-                    onTouchStart={handleDragStart}
-                    onTouchMove={handleDragMove}
-                    onTouchEnd={handleDragEnd}
-                    onMouseDown={handleDragStart}
-                    onMouseMove={handleDragMove}
-                    onMouseUp={handleDragEnd}
-                    onMouseLeave={() => { if(isDragging) handleDragEnd() }}
+                    onPointerDown={handleDragStart}
+                    onPointerMove={handleDragMove}
+                    onPointerUp={handleDragEnd}
+                    onPointerLeave={(e) => { if(isDragging) handleDragEnd(e) }}
                     style={{ 
                         transform: `translateX(${swipeOffset}px) rotate(${swipeOffset * 0.05}deg)`,
                         transition: isDragging ? 'none' : 'transform 0.3s ease-out'
@@ -410,12 +410,12 @@ export const Flashcards: React.FC = () => {
                         <div className="absolute inset-0 backface-hidden bg-[#1e293b] rounded-[40px] border border-white/10 shadow-2xl p-10 flex flex-col items-center justify-center text-center select-none">
                             <span className="absolute top-8 left-10 text-[10px] font-black text-cyan-500 uppercase tracking-[0.2em] bg-cyan-500/10 px-3 py-1.5 rounded-full">Concept</span>
                             <div className="max-h-[70%] overflow-y-auto w-full custom-scrollbar flex flex-col items-center justify-center">
-                                <div className="prose prose-invert prose-sm max-w-none w-full text-center">
+                                <div className="prose prose-invert prose-sm max-w-none w-full text-center handwritten-math">
                                     <ReactMarkdown 
                                         remarkPlugins={[remarkMath, remarkGfm]} 
                                         rehypePlugins={[rehypeKatex]}
                                     >
-                                        {currentCard.front}
+                                        {preprocessMath(currentCard.front)}
                                     </ReactMarkdown>
                                 </div>
                             </div>
@@ -425,12 +425,12 @@ export const Flashcards: React.FC = () => {
                         <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] rounded-[40px] border border-cyan-500/20 shadow-2xl p-10 flex flex-col items-center justify-center text-center select-none">
                             <span className="absolute top-8 left-10 text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1.5 rounded-full">Insight</span>
                             <div className="max-h-[80%] overflow-y-auto w-full pr-2 custom-scrollbar flex flex-col items-center justify-center">
-                                <div className="prose prose-invert prose-sm max-w-none w-full text-center">
+                                <div className="prose prose-invert prose-sm max-w-none w-full text-center handwritten-math">
                                     <ReactMarkdown 
                                         remarkPlugins={[remarkMath, remarkGfm]} 
                                         rehypePlugins={[rehypeKatex]}
                                     >
-                                        {currentCard.back}
+                                        {preprocessMath(currentCard.back)}
                                     </ReactMarkdown>
                                 </div>
                             </div>

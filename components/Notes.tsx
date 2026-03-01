@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Note, Deck } from '../types';
+import { preprocessMath } from '../src/utils/math';
 import { Plus, Trash2, ArrowLeft, Save, ChevronRight, Camera, Loader2, Edit2, X, Eye, Maximize2, Sparkles, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { enhanceNoteContent, processImageToNote, generateFlashcards } from '../services/geminiService';
 import { getNotes, saveNote, deleteNote, saveDeck } from '../services/storage';
@@ -201,11 +202,11 @@ export const Notes: React.FC = () => {
               {/* Content */}
               <div className="flex-1 overflow-auto p-6 md:p-12 custom-scrollbar bg-[#0b1221]">
                   <div 
-                    className="prose prose-invert prose-lg max-w-4xl mx-auto pb-20 origin-top transition-transform duration-200"
+                    className="prose prose-invert prose-lg max-w-4xl mx-auto pb-20 origin-top transition-transform duration-200 handwritten-math"
                     style={{ transform: `scale(${zoomLevel})` }}
                   >
                       <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-8">{activeNote.title}</h1>
-                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{activeNote.content || "*No content to preview*"}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessMath(activeNote.content) || "*No content to preview*"}</ReactMarkdown>
                   </div>
               </div>
           </div>
@@ -394,8 +395,8 @@ export const Notes: React.FC = () => {
                         placeholder="Start typing your notes here..."
                       />
                   ) : (
-                      <div className="flex-1 overflow-y-auto custom-scrollbar prose prose-invert prose-sm max-w-none p-6">
-                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{activeNote.content || "*No content to preview*"}</ReactMarkdown>
+                      <div className="flex-1 overflow-y-auto custom-scrollbar prose prose-invert prose-sm max-w-none p-6 handwritten-math">
+                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessMath(activeNote.content) || "*No content to preview*"}</ReactMarkdown>
                       </div>
                   )}
               </div>

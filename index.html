@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MUKTI Study</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Architects+Daughter&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <style>
       body {
@@ -14,7 +14,20 @@
         background: #0f172a; /* Fallback */
         color: white;
       }
+
+      /* Handwriting style for equations and notes */
+      .handwritten-math {
+        font-family: 'Architects Daughter', cursive !important;
+      }
+
+      .handwritten-math .katex {
+        font-size: 1.15em;
+      }
       
+      .handwritten-math .katex * {
+        font-family: 'Architects Daughter', cursive !important;
+      }
+
       /* Globally hide scrollbars for a native app feel */
       ::-webkit-scrollbar {
         display: none !important;
