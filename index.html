@@ -40,6 +40,23 @@
         max-width: 100% !important;
         height: auto !important;
       }
+
+      /* Fix for prose tables and long content */
+      .prose table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .prose pre {
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+      }
+
+      .prose code {
+        word-break: break-all !important;
+      }
     </style>
 <link rel="stylesheet" href="/index.css">
 </head>

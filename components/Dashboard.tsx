@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ViewState, UserStats } from '../types';
-import { ArrowRight, ChevronRight, Calculator, Video, Network, Star, NotebookPen } from 'lucide-react';
+import { ArrowRight, ChevronRight, Calculator, Video, Network, Star, NotebookPen, Flame } from 'lucide-react';
 import { getStats } from '../services/storage';
 
 interface DashboardProps {
@@ -65,8 +65,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
         </div>
         <div className="relative z-10 flex flex-col gap-4">
             <div>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-widest text-white mb-2 inline-block backdrop-blur-md border border-white/10">
-                    MUKTI STUDY 🔥
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-widest text-white mb-2 inline-flex items-center gap-1 backdrop-blur-md border border-white/10">
+                    MUKTI STUDY <Flame size={10} className="text-orange-400" />
                 </span>
                 <h2 className="text-xl font-bold text-white leading-tight">
                     Ace your upcoming exams<br/><span className="text-blue-200">with live AI tutoring</span>

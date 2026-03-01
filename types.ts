@@ -27,10 +27,20 @@ export interface UserStats {
   dailyGoal: number;
 }
 
+export type AIProvider = 'gemini' | 'groq' | 'openrouter';
+
 export interface UserSettings {
   name: string;
   academicLevel: string;
   profileImage: string | null;
+  aiProvider: AIProvider;
+  geminiKey?: string;
+  groqKey?: string;
+  openrouterKey?: string;
+  pollinationsKey?: string;
+  textModel?: string;
+  mediaModel?: string;
+  diagramModel?: string;
 }
 
 export interface ChatMessage {
@@ -38,6 +48,8 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+  tool?: string;
+  reasoning?: string;
 }
 
 export interface Note {
@@ -63,4 +75,12 @@ declare global {
       openSelectKey: () => Promise<void>;
     };
   }
+}
+
+interface ImportMetaEnv {
+  readonly VITE_POLLINATIONS_API_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
 }

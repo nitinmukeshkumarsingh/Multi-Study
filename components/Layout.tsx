@@ -35,9 +35,6 @@ const NavItem = ({
         {label}
       </span>
     </div>
-    {active && (
-      <div className="absolute top-1 w-1 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-    )}
   </button>
 );
 

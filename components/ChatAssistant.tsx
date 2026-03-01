@@ -73,32 +73,51 @@ export const ChatAssistant: React.FC = () => {
         setIsStreaming(true);
 
         let fullText = "";
+        let fullReasoning = "";
+        let currentTool = "";
         for await (const chunk of stream) {
-          const chunkText = chunk.text;
-          if (chunkText) {
-            fullText += chunkText;
-            setMessages(prev => 
-              prev.map(m => m.id === aiMsgId ? { ...m, text: fullText } : m)
-            );
-          }
+          const c = chunk as any;
+          if (c.tool) currentTool = c.tool;
+          else if (c.doneTool) currentTool = "";
+          
+          if (c.reasoning) fullReasoning += c.reasoning;
+          if (c.text) fullText += c.text;
+
+          setMessages(prev => 
+            prev.map(m => m.id === aiMsgId ? { 
+                ...m, 
+                tool: currentTool || undefined,
+                reasoning: fullReasoning,
+                text: fullText 
+            } : m)
+          );
         }
     } catch (error: any) {
         console.error("Chat error", error);
         setIsLoading(false);
         
-        let errorMessage = 'I encountered an error. Please check your API key in Settings! ⚠️';
+        let errorMessage = 'I encountered an error. Please check your API keys in Settings! ⚠️';
         const errorStr = JSON.stringify(error);
         
         if (errorStr.includes('429') || error?.status === 429 || error?.message?.includes('429')) {
-            errorMessage = 'Quota exceeded! 🚨 The free AI limit has been reached. Please wait a moment or add your own Gemini API Key in Settings to continue studying without limits. 📚✨';
+            errorMessage = 'Quota exceeded! 🚨 The free AI limit has been reached. Please wait a moment or add your own API Key in Settings to continue studying without limits. 📚✨';
+        } else if (error?.message) {
+            errorMessage = `⚠️ ${error.message}`;
         }
 
-        setMessages(prev => [...prev, { 
-            id: Date.now().toString(), 
-            role: 'model', 
-            text: errorMessage, 
-            timestamp: Date.now() 
-        }]);
+        setMessages(prev => {
+            const lastMsg = prev[prev.length - 1];
+            if (lastMsg && lastMsg.role === 'model' && !lastMsg.text && !lastMsg.tool) {
+                // Replace the empty loading message with the error
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, text: errorMessage } : m);
+            }
+            return [...prev, { 
+                id: Date.now().toString(), 
+                role: 'model', 
+                text: errorMessage, 
+                timestamp: Date.now() 
+            }];
+        });
     } finally {
         setIsStreaming(false);
     }
@@ -116,7 +135,7 @@ export const ChatAssistant: React.FC = () => {
       {/* Messages Area */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 pr-1 pb-6 no-scrollbar pt-2"
+        className="flex-1 overflow-y-auto space-y-4 pr-1 pb-24 no-scrollbar pt-2"
       >
         {messages.map((msg) => (
           <div
@@ -124,30 +143,88 @@ export const ChatAssistant: React.FC = () => {
             className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
           >
             <div
-              className={`max-w-[88%] rounded-[24px] px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${
+              className={`max-w-[96%] rounded-[24px] px-4 py-3 text-[14px] leading-relaxed shadow-sm overflow-hidden ${
                 msg.role === 'user'
                   ? 'bg-cyan-600 text-white rounded-br-sm shadow-cyan-900/20'
-                  : 'bg-[#1e293b] text-slate-200 rounded-bl-sm border border-white/5 shadow-black/20'
+                  : 'bg-[#1e293b] text-slate-200 rounded-bl-sm border border-white/5 shadow-black/20 w-full'
               }`}
             >
               {msg.role === 'model' ? (
-                 <div className="prose prose-invert prose-sm max-w-none">
-                     <ReactMarkdown 
-                        remarkPlugins={[remarkMath, remarkGfm]} 
-                        rehypePlugins={[rehypeKatex]}
-                     >
-                        {msg.text}
-                     </ReactMarkdown>
-                     {!msg.text && (
-                        <div className="flex gap-1.5 py-2 items-center">
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" />
-                        </div>
-                     )}
+                 <div className="prose prose-invert prose-sm max-w-none break-words overflow-hidden">
+                     {(() => {
+                         let displayReasoning = msg.reasoning || "";
+                         let displayText = msg.text || "";
+
+                         const thinkMatch = displayText.match(/<think>([\s\S]*?)(?:<\/think>|$)/);
+                         if (thinkMatch) {
+                             displayReasoning += (displayReasoning ? "\n" : "") + thinkMatch[1];
+                             displayText = displayText.replace(/<think>[\s\S]*?(?:<\/think>|$)/, "").trim();
+                         }
+
+                         const isCurrentStreaming = isStreaming && msg.id === messages[messages.length - 1].id;
+
+                         return (
+                             <>
+                                 {msg.tool && (
+                                     <div className="flex items-center gap-2 text-cyan-400 mb-2 text-[10px] font-bold uppercase tracking-wider bg-cyan-950/30 px-3 py-1.5 rounded-full w-fit border border-cyan-500/20">
+                                         <Loader2 size={10} className="animate-spin" />
+                                         {msg.tool}...
+                                     </div>
+                                 )}
+                                 
+                                 {isCurrentStreaming && displayReasoning && (
+                                     <div className="mb-4 p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-slate-400 text-xs">
+                                         <div className="flex items-center gap-2 mb-2 text-cyan-500 font-bold text-[10px] uppercase tracking-wider">
+                                             <Sparkles size={12} className="animate-pulse" />
+                                             Thinking Process...
+                                         </div>
+                                         <div className="whitespace-pre-wrap opacity-80 max-h-40 overflow-y-auto no-scrollbar font-mono text-[10px]">
+                                             {displayReasoning}
+                                         </div>
+                                     </div>
+                                 )}
+
+                                 {displayText && (
+                                     <div className="overflow-x-auto no-scrollbar">
+                                         <ReactMarkdown 
+                                            remarkPlugins={[remarkMath, remarkGfm]} 
+                                            rehypePlugins={[rehypeKatex]}
+                                            components={{
+                                                table: ({node, ...props}) => (
+                                                    <div className="my-4 w-full overflow-x-auto rounded-xl border border-white/10 bg-black/20">
+                                                        <table className="min-w-full divide-y divide-white/10 text-[12px]" {...props} />
+                                                    </div>
+                                                ),
+                                                thead: ({node, ...props}) => <thead className="bg-white/5" {...props} />,
+                                                th: ({node, ...props}) => <th className="px-3 py-2 text-left font-bold text-cyan-400 uppercase tracking-wider border-b border-white/10 whitespace-nowrap" {...props} />,
+                                                td: ({node, ...props}) => <td className="px-3 py-2 text-slate-300 border-b border-white/5 last:border-0 min-w-[100px]" {...props} />,
+                                                code: ({node, inline, ...props}: any) => (
+                                                    inline 
+                                                        ? <code className="bg-white/10 px-1.5 py-0.5 rounded text-cyan-300 text-[12px]" {...props} />
+                                                        : <span className="block my-4 overflow-x-auto rounded-xl bg-black/40 p-4 border border-white/5">
+                                                            <code className="text-[12px] block" {...props} />
+                                                          </span>
+                                                )
+                                            }}
+                                         >
+                                            {displayText}
+                                         </ReactMarkdown>
+                                     </div>
+                                 )}
+                                 
+                                 {!displayText && !msg.tool && !displayReasoning && (
+                                    <div className="flex gap-1.5 py-2 items-center">
+                                        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" />
+                                    </div>
+                                 )}
+                             </>
+                         );
+                     })()}
                  </div>
               ) : (
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
               )}
             </div>
             <span className="text-[10px] text-slate-600 mt-1.5 px-1 font-bold uppercase tracking-tighter opacity-70">
@@ -171,8 +248,8 @@ export const ChatAssistant: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 bg-[#0b1221] pt-3 pb-8">
-          <div className="flex items-center gap-2 max-w-md mx-auto relative">
+      <div className="flex-shrink-0 bg-[#0b1221] pt-3 pb-4 absolute bottom-0 left-0 right-0 z-10">
+          <div className="flex items-center gap-2 max-w-md mx-auto relative px-2">
                 <div className="flex-1 bg-[#1e293b] rounded-[28px] border border-white/10 flex items-center px-5 py-1 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all shadow-xl">
                     <input
                         type="text"

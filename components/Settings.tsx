@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Save, User, BookOpen, Key, ArrowLeft, Check, ExternalLink, ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import { UserSettings } from '../types';
+import { Camera, Save, User, BookOpen, Key, ArrowLeft, Check, ExternalLink, ShieldCheck, Eye, EyeOff, Cpu, Globe, Image as ImageIcon } from 'lucide-react';
+import { UserSettings, AIProvider } from '../types';
 import { getSettings, saveSettings, getCustomApiKey, saveCustomApiKey } from '../services/storage';
 
 interface SettingsProps {
@@ -12,6 +12,9 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
   const [settings, setSettings] = useState<UserSettings>(getSettings());
   const [customKey, setCustomKey] = useState(getCustomApiKey());
   const [showKey, setShowKey] = useState(false);
+  const [showGroqKey, setShowGroqKey] = useState(false);
+  const [showORKey, setShowORKey] = useState(false);
+  const [showPollinationsKey, setShowPollinationsKey] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +126,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
         </div>
       </section>
 
-      {/* AI Config Section */}
+        {/* AI Config Section */}
       <section className="bg-[#1e293b] rounded-[32px] p-6 border border-white/5 space-y-6 shadow-xl">
         <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl">
@@ -131,13 +134,72 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
             </div>
             <div>
                 <h3 className="text-white font-bold">AI Configuration</h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Access & Keys</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Models & Access</p>
             </div>
         </div>
 
-        {/* Manual Key Input */}
+        <div className="space-y-4 mb-6">
+            <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Text Processing Model</label>
+                <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4">
+                    <select 
+                        value={settings.textModel || 'groq:llama-3.3-70b-versatile'}
+                        onChange={(e) => setSettings(prev => ({ ...prev, textModel: e.target.value }))}
+                        className="w-full bg-transparent py-3 text-white focus:outline-none text-sm appearance-none"
+                    >
+                        <option value="groq:qwen/qwen3-32b" className="bg-[#1e293b]">Groq: Qwen 3 32B</option>
+                        <option value="groq:openai/gpt-oss-120b" className="bg-[#1e293b]">Groq: GPT-OSS 120B</option>
+                        <option value="groq:openai/gpt-oss-20b" className="bg-[#1e293b]">Groq: GPT-OSS 20B</option>
+                        <option value="groq:openai/gpt-oss-safeguard-20b" className="bg-[#1e293b]">Groq: GPT-OSS Safeguard 20B</option>
+                        <option value="groq:groq/compound" className="bg-[#1e293b]">Groq: Compound</option>
+                        <option value="groq:groq/compound-mini" className="bg-[#1e293b]">Groq: Compound Mini</option>
+                        <option value="openrouter:openrouter/free" className="bg-[#1e293b]">OpenRouter: Free Models</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Media Processing Model</label>
+                <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4">
+                    <select 
+                        value={settings.mediaModel || 'groq:meta-llama/llama-4-scout-17b-16e-instruct'}
+                        onChange={(e) => setSettings(prev => ({ ...prev, mediaModel: e.target.value }))}
+                        className="w-full bg-transparent py-3 text-white focus:outline-none text-sm appearance-none"
+                    >
+                        <option value="groq:meta-llama/llama-4-scout-17b-16e-instruct" className="bg-[#1e293b]">Groq: Llama 4 Scout 17B (16e)</option>
+                        <option value="openrouter:openrouter/free" className="bg-[#1e293b]">OpenRouter: Free (Auto)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Diagram Processing Model</label>
+                <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4">
+                    <select 
+                        value={settings.diagramModel || 'flux'}
+                        onChange={(e) => setSettings(prev => ({ ...prev, diagramModel: e.target.value }))}
+                        className="w-full bg-transparent py-3 text-white focus:outline-none text-sm appearance-none"
+                    >
+                        <option value="flux" className="bg-[#1e293b]">Flux</option>
+                        <option value="zimage" className="bg-[#1e293b]">ZImage</option>
+                        <option value="grok-imagine" className="bg-[#1e293b]">Grok Imagine</option>
+                        <option value="imagen-4" className="bg-[#1e293b]">Imagen 4</option>
+                        <option value="wiki-common" className="bg-[#1e293b]">Wiki Common</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <p className="text-xs text-slate-400 leading-relaxed">
+            Add your own API keys to bypass rate limits. If left empty, the app will try to use the default shared keys.
+        </p>
+
+        {/* Gemini Key */}
         <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Gemini API Key (Required)</label>
+            <div className="flex justify-between items-center px-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gemini API Key</label>
+                {!customKey && <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1"><Check size={10} /> Using Default</span>}
+            </div>
             <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4 relative group focus-within:ring-1 focus-within:ring-indigo-500/50">
                 <ShieldCheck size={18} className="text-indigo-400 mr-3" />
                 <input 
@@ -145,7 +207,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     value={customKey}
                     onChange={(e) => setCustomKey(e.target.value)}
                     className="w-full bg-transparent py-3 text-white focus:outline-none text-sm font-mono placeholder-slate-700"
-                    placeholder="AIzaSy..."
+                    placeholder="Enter your personal key..."
                     autoComplete="off"
                 />
                 <button 
@@ -155,32 +217,97 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
             </div>
-            <p className="text-[10px] text-slate-500 px-1 leading-relaxed">
-                Enter your personal Gemini API key here. 
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline ml-1">Get a key</a>
-            </p>
-        </div>
-
-        <div className="relative">
-             <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                <div className="w-full border-t border-white/10"></div>
-            </div>
-            <div className="relative flex justify-center">
-                <span className="bg-[#1e293b] px-2 text-[10px] text-slate-500 font-bold uppercase">OR</span>
+            <div className="flex justify-between items-center px-1">
+                 <p className="text-[10px] text-slate-500">Video Tutor & Chat</p>
+                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 hover:underline flex items-center gap-1">Get Key <ExternalLink size={10} /></a>
             </div>
         </div>
 
-        {/* Project Selector */}
-        <div className="bg-indigo-500/5 rounded-2xl p-4 border border-indigo-500/10">
-            <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                Use the official Google AI Project selector (Recommended for Veo & Advanced Models).
-            </p>
-            <button 
-                onClick={openApiKeyDialog}
-                className="w-full bg-[#1e293b] hover:bg-[#253246] border border-indigo-500/30 text-indigo-300 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-            >
-                <Key size={18} /> Select Google Cloud Project
-            </button>
+        {/* Groq Key */}
+        <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Groq API Key</label>
+                {!settings.groqKey && <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1"><Check size={10} /> Using Default</span>}
+            </div>
+            <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4 relative group focus-within:ring-1 focus-within:ring-orange-500/50">
+                <Cpu size={18} className="text-orange-400 mr-3" />
+                <input 
+                    type={showGroqKey ? "text" : "password"}
+                    value={settings.groqKey || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, groqKey: e.target.value }))}
+                    className="w-full bg-transparent py-3 text-white focus:outline-none text-sm font-mono placeholder-slate-700"
+                    placeholder="Enter your personal key..."
+                    autoComplete="off"
+                />
+                <button 
+                    onClick={() => setShowGroqKey(!showGroqKey)} 
+                    className="p-2 text-slate-600 hover:text-white transition-colors"
+                >
+                    {showGroqKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+            </div>
+            <div className="flex justify-between items-center px-1">
+                 <p className="text-[10px] text-slate-500">Fast Text Processing</p>
+                 <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-[10px] text-orange-400 hover:underline flex items-center gap-1">Get Key <ExternalLink size={10} /></a>
+            </div>
+        </div>
+
+        {/* OpenRouter Key */}
+        <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">OpenRouter API Key</label>
+                {!settings.openrouterKey && <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1"><Check size={10} /> Using Default</span>}
+            </div>
+            <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4 relative group focus-within:ring-1 focus-within:ring-pink-500/50">
+                <Globe size={18} className="text-pink-400 mr-3" />
+                <input 
+                    type={showORKey ? "text" : "password"}
+                    value={settings.openrouterKey || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, openrouterKey: e.target.value }))}
+                    className="w-full bg-transparent py-3 text-white focus:outline-none text-sm font-mono placeholder-slate-700"
+                    placeholder="Enter your personal key..."
+                    autoComplete="off"
+                />
+                <button 
+                    onClick={() => setShowORKey(!showORKey)} 
+                    className="p-2 text-slate-600 hover:text-white transition-colors"
+                >
+                    {showORKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+            </div>
+            <div className="flex justify-between items-center px-1">
+                 <p className="text-[10px] text-slate-500">Universal Model Access</p>
+                 <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-[10px] text-pink-400 hover:underline flex items-center gap-1">Get Key <ExternalLink size={10} /></a>
+            </div>
+        </div>
+
+        {/* Pollinations Key */}
+        <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pollinations AI Key</label>
+                {!settings.pollinationsKey && <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1"><Check size={10} /> Using Default</span>}
+            </div>
+            <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4 relative group focus-within:ring-1 focus-within:ring-emerald-500/50">
+                <ImageIcon size={18} className="text-emerald-400 mr-3" />
+                <input 
+                    type={showPollinationsKey ? "text" : "password"}
+                    value={settings.pollinationsKey || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, pollinationsKey: e.target.value }))}
+                    className="w-full bg-transparent py-3 text-white focus:outline-none text-sm font-mono placeholder-slate-700"
+                    placeholder="Enter your pollinations key..."
+                    autoComplete="off"
+                />
+                <button 
+                    onClick={() => setShowPollinationsKey(!showPollinationsKey)} 
+                    className="p-2 text-slate-600 hover:text-white transition-colors"
+                >
+                    {showPollinationsKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+            </div>
+            <div className="flex justify-between items-center px-1">
+                 <p className="text-[10px] text-slate-500">Image Generation</p>
+                 <a href="https://pollinations.ai" target="_blank" rel="noreferrer" className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1">Get Key <ExternalLink size={10} /></a>
+            </div>
         </div>
       </section>
 

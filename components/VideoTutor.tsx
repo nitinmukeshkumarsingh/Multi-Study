@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Mic, MicOff, Camera, CameraOff, PhoneOff, Loader2, Sparkles, RefreshCcw, Volume2 } from 'lucide-react';
-import { getSettings, getActiveApiKey } from '../services/storage';
+import { getSettings, getGeminiKey } from '../services/storage';
 
 const decode = (base64: string) => {
   const binaryString = atob(base64);
@@ -66,7 +66,7 @@ export const VideoTutor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
   const startSession = async (modeOverride?: 'user' | 'environment') => {
     setIsConnecting(true);
-    const apiKey = getActiveApiKey();
+    const apiKey = getGeminiKey();
     const ai = new GoogleGenAI({ apiKey });
     const settings = getSettings();
     const mode = modeOverride || facingMode;

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Note, Deck } from '../types';
-import { Plus, Trash2, ArrowLeft, Save, ChevronRight, Camera, Loader2, Edit2, X, Eye, Maximize2, Sparkles, Layers } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, ChevronRight, Camera, Loader2, Edit2, X, Eye, Maximize2, Sparkles, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { enhanceNoteContent, processImageToNote, generateFlashcards } from '../services/geminiService';
 import { getNotes, saveNote, deleteNote, saveDeck } from '../services/storage';
 import ReactMarkdown from 'react-markdown';
@@ -20,6 +20,7 @@ export const Notes: React.FC = () => {
   const [isGeneratingDeck, setIsGeneratingDeck] = useState(false);
   const [renamingNote, setRenamingNote] = useState<Note | null>(null);
   const [tempTitle, setTempTitle] = useState('');
+  const [zoomLevel, setZoomLevel] = useState(1);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,18 +170,40 @@ export const Notes: React.FC = () => {
           <div className="fixed inset-0 z-[100] bg-[#0b1221] flex flex-col animate-in fade-in duration-300">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0f172a]">
-                  <h2 className="text-xl font-bold text-white truncate max-w-[80%] pl-2">{activeNote.title}</h2>
-                  <button 
-                    onClick={() => setShowFullScreen(false)}
-                    className="p-2 bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors hover:bg-white/10"
-                  >
-                      <X size={24} />
-                  </button>
+                  <h2 className="text-xl font-bold text-white truncate max-w-[60%] pl-2">{activeNote.title}</h2>
+                  <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.1))}
+                        className="p-2 bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors hover:bg-white/10"
+                        title="Zoom Out"
+                      >
+                          <ZoomOut size={20} />
+                      </button>
+                      <span className="text-xs text-slate-400 font-mono w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
+                      <button 
+                        onClick={() => setZoomLevel(prev => Math.min(2, prev + 0.1))}
+                        className="p-2 bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors hover:bg-white/10"
+                        title="Zoom In"
+                      >
+                          <ZoomIn size={20} />
+                      </button>
+                      <div className="w-px h-6 bg-white/10 mx-2"></div>
+                      <button 
+                        onClick={() => { setShowFullScreen(false); setZoomLevel(1); }}
+                        className="p-2 bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors hover:bg-white/10"
+                        title="Close Full Screen"
+                      >
+                          <X size={24} />
+                      </button>
+                  </div>
               </div>
               
               {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar bg-[#0b1221]">
-                  <div className="prose prose-invert prose-lg max-w-4xl mx-auto pb-20">
+              <div className="flex-1 overflow-auto p-6 md:p-12 custom-scrollbar bg-[#0b1221]">
+                  <div 
+                    className="prose prose-invert prose-lg max-w-4xl mx-auto pb-20 origin-top transition-transform duration-200"
+                    style={{ transform: `scale(${zoomLevel})` }}
+                  >
                       <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-8">{activeNote.title}</h1>
                       <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{activeNote.content || "*No content to preview*"}</ReactMarkdown>
                   </div>

@@ -27,9 +27,22 @@ export const getSettings = (): UserSettings => {
   const defaultSettings: UserSettings = {
     name: 'Student',
     academicLevel: 'High School',
-    profileImage: null
+    profileImage: null,
+    aiProvider: 'gemini',
+    textModel: 'groq:qwen/qwen3-32b',
+    mediaModel: 'groq:meta-llama/llama-4-scout-17b-16e-instruct',
+    diagramModel: 'imagen-4'
   };
-  return stored ? JSON.parse(stored) : defaultSettings;
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    // Migration for mediaModel ID change
+    if (parsed.mediaModel === 'groq:llama-4-scout-17b-instruct') {
+      parsed.mediaModel = 'groq:meta-llama/llama-4-scout-17b-16e-instruct';
+      localStorage.setItem(KEYS.SETTINGS, JSON.stringify(parsed));
+    }
+    return parsed;
+  }
+  return defaultSettings;
 };
 
 export const saveSettings = (settings: UserSettings) => {
@@ -45,8 +58,29 @@ export const saveCustomApiKey = (key: string) => {
 };
 
 export const getActiveApiKey = (): string => {
+  const settings = getSettings();
   const custom = getCustomApiKey();
-  return custom || (process.env.GEMINI_API_KEY || '');
+  
+  // If we have a manual key in settings for the specific provider, use it
+  if (settings.aiProvider === 'gemini' && settings.geminiKey) return settings.geminiKey;
+  if (settings.aiProvider === 'groq' && settings.groqKey) return settings.groqKey;
+  if (settings.aiProvider === 'openrouter' && settings.openrouterKey) return settings.openrouterKey;
+
+  // Fallback to the old custom key (which was Gemini only)
+  if (settings.aiProvider === 'gemini' && custom) return custom;
+
+  // Fallback to environment variables
+  if (settings.aiProvider === 'gemini') return process.env.GEMINI_API_KEY || '';
+  if (settings.aiProvider === 'groq') return process.env.GROQ_API_KEY || '';
+  if (settings.aiProvider === 'openrouter') return process.env.OPENROUTER_API_KEY || '';
+
+  return '';
+};
+
+export const getGeminiKey = (): string => {
+  const settings = getSettings();
+  const custom = getCustomApiKey();
+  return settings.geminiKey || custom || process.env.GEMINI_API_KEY || '';
 };
 
 export const getStats = (): UserStats => {
@@ -197,6 +231,22 @@ export interface TimerState {
     breakAlarmUrl?: string | null;
     cycleAlarmUrl?: string | null;
 }
+
+export const getGroqUsage = (): number => {
+  const usage = localStorage.getItem('lumina_groq_usage');
+  return usage ? parseInt(usage, 10) : 0;
+};
+
+export const updateGroqUsage = (tokens: number) => {
+  const current = getGroqUsage();
+  const newUsage = current + tokens;
+  // Reset if we exceed the cycle (500k + 500k + 500k + 500k + 500k = 2.5M)
+  if (newUsage > 2500000) {
+    localStorage.setItem('lumina_groq_usage', '0');
+  } else {
+    localStorage.setItem('lumina_groq_usage', newUsage.toString());
+  }
+};
 
 export const getTimerState = (): TimerState | null => {
     const stored = localStorage.getItem(KEYS.TIMER);
