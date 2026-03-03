@@ -5,6 +5,7 @@ import { preprocessMath } from '../src/utils/math';
 import { Plus, Trash2, ArrowLeft, Save, ChevronRight, Camera, Loader2, Edit2, X, Eye, Maximize2, Sparkles, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import { enhanceNoteContent, processImageToNote, generateFlashcards } from '../services/geminiService';
 import { getNotes, saveNote, deleteNote, saveDeck } from '../services/storage';
+import { notify } from '../utils/notification';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -45,13 +46,13 @@ export const Notes: React.FC = () => {
           masteryPercentage: 0
         };
         saveDeck(newDeck);
-        alert('Flashcard deck created successfully! Go to Flashcards tab to view it.');
+        notify.success('Flashcard deck created successfully!', 'Go to Flashcards tab to view it.');
       } else {
-        alert('Could not generate flashcards from this note. Try adding more content.');
+        notify.warning('Could not generate flashcards', 'Try adding more content to this note.');
       }
     } catch (error) {
       console.error("Failed to convert note to deck:", error);
-      alert('Failed to create flashcard deck.');
+      notify.error('Failed to create flashcard deck.');
     } finally {
       setIsGeneratingDeck(false);
     }
@@ -117,7 +118,7 @@ export const Notes: React.FC = () => {
       try {
         const { title, content } = await processImageToNote(base64, file.type);
         if (title === "Error") {
-          alert(content || "Failed to process image. Please try again.");
+          notify.error("Failed to process image", content || "Please try again.");
           return;
         }
         const newNote: Note = {

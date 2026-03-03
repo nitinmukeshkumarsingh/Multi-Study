@@ -5,6 +5,7 @@ import { Flashcard, Deck, UserStats } from '../types';
 import { preprocessMath } from '../src/utils/math';
 import { generateFlashcards } from '../services/geminiService';
 import { getStats, updateStats, saveDeck, getDecks, deleteDeck } from '../services/storage';
+import { notify } from '../utils/notification';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -128,8 +129,9 @@ export const Flashcards: React.FC = () => {
       saveDeck(newDeck);
       setSavedDecks(getDecks());
       initializeSession(newDeck, studyMode);
+      notify.success('Flashcards generated successfully!');
     } else {
-      alert("Failed to generate flashcards. Please try again with a different topic or image.");
+      notify.error("Failed to generate flashcards", "Please try again with a different topic or image.");
     }
     setIsGenerating(false);
     setSelectedImage(null);

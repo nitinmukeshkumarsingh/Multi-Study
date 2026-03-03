@@ -15,6 +15,7 @@ import { ViewState } from './types';
 import { initStoragePersistence } from './services/storage';
 import { useTimer } from './src/context/TimerContext';
 import { Bell } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -53,6 +54,7 @@ const App: React.FC = () => {
 
   return (
     <Layout currentView={currentView} setView={setCurrentView}>
+      <Toaster position="top-center" theme="dark" richColors />
       {renderView()}
 
       {/* Global Ringing Alarm Modal */}
