@@ -177,37 +177,12 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 const robustParseJSON = (text: string) => {
   if (!text) return null;
-  
-  try {
-    // 1. Clean markdown
-    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-    
-    // 2. Extract JSON part
-    const startArr = clean.indexOf('[');
-    const startObj = clean.indexOf('{');
-    let start = -1;
-    let end = -1;
-    
-    if (startArr !== -1 && (startObj === -1 || startArr < startObj)) {
-      start = startArr;
-      end = clean.lastIndexOf(']');
-    } else if (startObj !== -1) {
-      start = startObj;
-      end = clean.lastIndexOf('}');
-    }
-    
-    // If we found a start but NO end, it might be truncated
-    if (start !== -1 && end === -1) {
-      end = clean.length - 1;
-    }
 
-    if (start !== -1 && end !== -1) {
-      clean = clean.substring(start, end + 1);
-    }
-
-    // 3. Fix truncated JSON (unclosed strings, objects, arrays)
-    const fixTruncated = (json: string) => {
-      let result = json;
+  // Helper: Sanitize JSON string (fix truncated, fix control chars)
+  const sanitize = (json: string) => {
+    // 1. Fix truncated JSON
+    const fixTruncated = (str: string) => {
+      let result = str;
       let inString = false;
       let escape = false;
       const stack: string[] = [];
@@ -245,31 +220,99 @@ const robustParseJSON = (text: string) => {
       return result;
     };
 
-    clean = fixTruncated(clean);
+    let clean = fixTruncated(json);
 
-    // 4. Fix control characters (literal newlines/tabs inside strings)
-    // We only escape newlines that are NOT structural (i.e., inside a string value)
-    const sanitized = clean.replace(/[\u0000-\u001F]/g, (match, offset, fullString) => {
-      if (match === '\n' || match === '\r') {
-        // Heuristic: Check if this newline is structural
-        // Structural newlines usually follow { [ , : or precede } ] "
-        const prevPart = fullString.slice(0, offset).trim();
-        const nextPart = fullString.slice(offset + 1).trim();
-        
-        const lastChar = prevPart.slice(-1);
-        const firstChar = nextPart.slice(0, 1);
-        
-        const isStructural = 
-          ['{', '[', ',', ':'].includes(lastChar) || 
-          ['}', ']', '"'].includes(firstChar);
-          
-        if (isStructural) return match; // Keep as real whitespace
-        return '\\n'; // Escape as string content
+    // 2. Fix control characters
+    let sanitized = '';
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < clean.length; i++) {
+      const char = clean[i];
+      
+      if (escape) {
+        sanitized += char;
+        escape = false;
+        continue;
       }
-      if (match === '\t') return '  '; // Replace tabs with spaces to avoid issues
-      return '';
-    });
+      
+      if (char === '\\') {
+        sanitized += char;
+        escape = true;
+        continue;
+      }
+      
+      if (char === '"') {
+        inString = !inString;
+        sanitized += char;
+        continue;
+      }
+      
+      if (inString) {
+        if (char === '\n') {
+          sanitized += '\\n';
+        } else if (char === '\r') {
+          sanitized += '\\r';
+        } else if (char === '\t') {
+          sanitized += '\\t';
+        } else if (char.charCodeAt(0) < 32) {
+          sanitized += '';
+        } else {
+          sanitized += char;
+        }
+      } else {
+        sanitized += char;
+      }
+    }
+    return sanitized;
+  };
+  
+  try {
+    // Strategy 1: Extract from Markdown code blocks
+    // This handles cases where the model outputs multiple JSON blocks (e.g. "Here is the JSON: ... and here is the corrected one: ...")
+    const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/g;
+    const matches = [...text.matchAll(codeBlockRegex)];
+    
+    if (matches.length > 0) {
+      // Prefer the last block as it's often the "corrected" or "final" result
+      for (let i = matches.length - 1; i >= 0; i--) {
+        try {
+          const candidate = matches[i][1].trim();
+          const sanitized = sanitize(candidate);
+          return JSON.parse(sanitized);
+        } catch (e) {
+          // Continue to next block if this one fails
+          continue;
+        }
+      }
+    }
 
+    // Strategy 2: Raw extraction (fallback)
+    // If no code blocks, or all failed, try to find JSON in the raw text
+    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    const startArr = clean.indexOf('[');
+    const startObj = clean.indexOf('{');
+    let start = -1;
+    let end = -1;
+    
+    if (startArr !== -1 && (startObj === -1 || startArr < startObj)) {
+      start = startArr;
+      end = clean.lastIndexOf(']');
+    } else if (startObj !== -1) {
+      start = startObj;
+      end = clean.lastIndexOf('}');
+    }
+    
+    if (start !== -1 && end === -1) {
+      end = clean.length - 1;
+    }
+
+    if (start !== -1 && end !== -1) {
+      clean = clean.substring(start, end + 1);
+    }
+
+    const sanitized = sanitize(clean);
     return JSON.parse(sanitized);
   } catch (e) {
     console.error("JSON Parse Error:", e, "Original text:", text);
