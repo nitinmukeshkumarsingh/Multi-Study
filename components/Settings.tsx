@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Save, User, BookOpen, Key, ArrowLeft, Check, ExternalLink, ShieldCheck, Eye, EyeOff, Cpu, Globe, Image as ImageIcon } from 'lucide-react';
+import { Camera, Save, User, BookOpen, Key, ArrowLeft, Check, ExternalLink, ShieldCheck, Eye, EyeOff, Cpu, Globe, Image as ImageIcon, Search } from 'lucide-react';
 import { UserSettings, AIProvider } from '../types';
 import { getSettings, saveSettings, getCustomApiKey, saveCustomApiKey } from '../services/storage';
 
@@ -143,7 +143,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Text Processing Model</label>
                 <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4">
                     <select 
-                        value={settings.textModel || 'groq:llama-3.3-70b-versatile'}
+                        value={settings.textModel || 'openrouter:openrouter/free'}
                         onChange={(e) => setSettings(prev => ({ ...prev, textModel: e.target.value }))}
                         className="w-full bg-transparent py-3 text-white focus:outline-none text-sm appearance-none"
                     >
@@ -162,7 +162,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Media Processing Model</label>
                 <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4">
                     <select 
-                        value={settings.mediaModel || 'groq:meta-llama/llama-4-scout-17b-16e-instruct'}
+                        value={settings.mediaModel || 'openrouter:openrouter/free'}
                         onChange={(e) => setSettings(prev => ({ ...prev, mediaModel: e.target.value }))}
                         className="w-full bg-transparent py-3 text-white focus:outline-none text-sm appearance-none"
                     >
@@ -176,7 +176,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Diagram Processing Model</label>
                 <div className="bg-black/20 rounded-2xl border border-white/5 flex items-center px-4">
                     <select 
-                        value={settings.diagramModel || 'flux'}
+                        value={settings.diagramModel || 'wiki-common'}
                         onChange={(e) => setSettings(prev => ({ ...prev, diagramModel: e.target.value }))}
                         className="w-full bg-transparent py-3 text-white focus:outline-none text-sm appearance-none"
                     >

@@ -128,6 +128,8 @@ export const Flashcards: React.FC = () => {
       saveDeck(newDeck);
       setSavedDecks(getDecks());
       initializeSession(newDeck, studyMode);
+    } else {
+      alert("Failed to generate flashcards. Please try again with a different topic or image.");
     }
     setIsGenerating(false);
     setSelectedImage(null);

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Wand2, Download, X, Network, ZoomIn, Loader2, Info, LayoutTemplate, Image as ImageIcon } from 'lucide-react';
-import { generateDiagramCode, callAI } from '../services/geminiService';
+import { Wand2, Download, X, Network, ZoomIn, Loader2, Info, LayoutTemplate, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { generateDiagramCode, callAI, fetchWikiCommonDiagram } from '../services/geminiService';
 import { getSettings } from '../services/storage';
 import mermaid from 'mermaid';
 
@@ -20,18 +20,25 @@ export const DiagramGenerator: React.FC = () => {
   const [showFullImage, setShowFullImage] = useState(false);
   const [svgContent, setSvgContent] = useState<string>('');
   const [mode, setMode] = useState<'mermaid' | 'schematic'>('mermaid');
-  const [schematicUrl, setSchematicUrl] = useState<string | null>(null);
+  
+  // Support multiple images (e.g. from Wiki Commons)
+  const [schematicUrls, setSchematicUrls] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  
+  const schematicUrl = schematicUrls.length > 0 ? schematicUrls[currentIndex] : null;
 
   const diagramRef = useRef<HTMLDivElement>(null);
 
   // Cleanup object URLs to prevent memory leaks
   useEffect(() => {
     return () => {
-      if (schematicUrl && schematicUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(schematicUrl);
-      }
+      schematicUrls.forEach(url => {
+        if (url && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
     };
-  }, [schematicUrl]);
+  }, [schematicUrls]);
 
   // Render Mermaid code whenever it changes and the ref is available
   useEffect(() => {
@@ -119,7 +126,8 @@ export const DiagramGenerator: React.FC = () => {
     setError(null);
     setMermaidCode('');
     setSvgContent('');
-    setSchematicUrl(null);
+    setSchematicUrls([]);
+    setCurrentIndex(0);
     
     try {
       if (mode === 'mermaid') {
@@ -128,25 +136,35 @@ export const DiagramGenerator: React.FC = () => {
       } else {
         // Schematic mode
         const settings = getSettings();
-        const diagramModel = settings.diagramModel || 'flux';
+        let diagramModel = settings.diagramModel || 'wiki-common';
         
-        // Use text processing models to convert the simple topic into an extremely detailed prompt
-        const promptEnhancementPrompt = `Convert the simple topic "${prompt}" into an extremely detailed image generation prompt for an educational diagram. Include specific terms to include, their correct spellings, what structures to show, and specify a clean white background with clear English labels. Return ONLY the prompt text, nothing else.`;
-        
-        let enhancedPrompt = prompt;
-        try {
-            enhancedPrompt = await callAI(promptEnhancementPrompt, { system: "You are an expert prompt engineer for educational diagrams." });
-            enhancedPrompt = enhancedPrompt.trim();
-        } catch (e) {
-            console.warn("Failed to enhance prompt, using original", e);
-            enhancedPrompt = `A clear, educational schematic diagram of ${prompt} with detailed English labels, high quality, white background`;
+        let urls: string[] = [];
+
+        // Try Wiki Common if selected
+        if (diagramModel === 'wiki-common') {
+            urls = await fetchWikiCommonDiagram(prompt);
         }
 
-        // Direct to pollinations with selected model
+        // If we have URLs from Wiki, use them
+        if (urls.length > 0) {
+            setSchematicUrls(urls);
+            setIsGenerating(false);
+            return;
+        }
+
+        // If no URL yet (either failed or model is AI/pollinations), use Pollinations
+        // Ensure model is valid for Pollinations
+        let pollinationsModel = diagramModel;
+        if (pollinationsModel === 'wiki-common') {
+            pollinationsModel = 'flux'; // Default fallback model
+        }
+
+        // Direct to pollinations with selected model (no prompt enhancement)
         const pollinationsKey = settings.pollinationsKey || import.meta.env.VITE_POLLINATIONS_API_KEY;
         const seed = Math.floor(Math.random() * 1000000);
         
-        let pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(enhancedPrompt)}?width=1024&height=1024&model=${diagramModel}&seed=${seed}&enhance=true&nologo=true`;
+        // Just use the raw prompt
+        let pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?width=1024&height=1024&model=${pollinationsModel}&seed=${seed}&enhance=true&nologo=true`;
         if (pollinationsKey) {
             pollinationsUrl += `&key=${pollinationsKey}`;
         }
@@ -157,10 +175,10 @@ export const DiagramGenerator: React.FC = () => {
             if (!response.ok) throw new Error('Failed to generate image');
             const blob = await response.blob();
             const objectUrl = URL.createObjectURL(blob);
-            setSchematicUrl(objectUrl);
+            setSchematicUrls([objectUrl]);
         } catch (fetchError) {
             console.warn("Fetch failed, falling back to direct URL", fetchError);
-            setSchematicUrl(pollinationsUrl);
+            setSchematicUrls([pollinationsUrl]);
         }
       }
     } catch (err: any) {
@@ -222,6 +240,20 @@ export const DiagramGenerator: React.FC = () => {
       } catch (e) {
         window.open(schematicUrl, '_blank');
       }
+    }
+  };
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex < schematicUrls.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    }
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
     }
   };
 
@@ -307,7 +339,28 @@ export const DiagramGenerator: React.FC = () => {
                       <div ref={diagramRef} className="mermaid w-full animate-in zoom-in-95 duration-500 cursor-zoom-in" onClick={() => setShowFullImage(true)} />
                   </div>
               ) : mode === 'schematic' && schematicUrl ? (
-                  <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-full h-full flex items-center justify-center relative">
+                      {schematicUrls.length > 1 && (
+                        <>
+                          <button 
+                            onClick={prevImage}
+                            disabled={currentIndex === 0}
+                            className={`absolute left-2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all z-10 ${currentIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+                          >
+                            <ChevronLeft size={24} />
+                          </button>
+                          <button 
+                            onClick={nextImage}
+                            disabled={currentIndex === schematicUrls.length - 1}
+                            className={`absolute right-2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all z-10 ${currentIndex === schematicUrls.length - 1 ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+                          >
+                            <ChevronRight size={24} />
+                          </button>
+                          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 px-2 py-1 rounded-full text-xs text-white z-10">
+                            {currentIndex + 1} / {schematicUrls.length}
+                          </div>
+                        </>
+                      )}
                       <img 
                         src={schematicUrl} 
                         alt="Schematic Diagram" 
@@ -348,7 +401,30 @@ export const DiagramGenerator: React.FC = () => {
                       dangerouslySetInnerHTML={{ __html: svgContent }} 
                     />
                   ) : mode === 'schematic' && schematicUrl ? (
-                    <img src={schematicUrl} alt="Schematic Diagram Full" className={`max-w-full max-h-full object-contain rounded-xl ${schematicUrl.toLowerCase().endsWith('.svg') ? 'bg-white p-8' : ''}`} />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                        {schematicUrls.length > 1 && (
+                            <>
+                              <button 
+                                onClick={prevImage}
+                                disabled={currentIndex === 0}
+                                className={`absolute left-4 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all z-50 ${currentIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+                              >
+                                <ChevronLeft size={32} />
+                              </button>
+                              <button 
+                                onClick={nextImage}
+                                disabled={currentIndex === schematicUrls.length - 1}
+                                className={`absolute right-4 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all z-50 ${currentIndex === schematicUrls.length - 1 ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+                              >
+                                <ChevronRight size={32} />
+                              </button>
+                              <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-black/50 px-3 py-1.5 rounded-full text-sm text-white z-50">
+                                {currentIndex + 1} / {schematicUrls.length}
+                              </div>
+                            </>
+                        )}
+                        <img src={schematicUrl} alt="Schematic Diagram Full" className={`max-w-full max-h-full object-contain rounded-xl ${schematicUrl.toLowerCase().endsWith('.svg') ? 'bg-white p-8' : ''}`} />
+                    </div>
                   ) : null}
               </div>
 

@@ -52,7 +52,7 @@ export const callAI = async (prompt: string, options: {
   if (options.image) mode = 'vision';
   else if (options.json) mode = 'json';
 
-  const selectedModelStr = mode === 'vision' ? (settings.mediaModel || 'groq:meta-llama/llama-4-scout-17b-16e-instruct') : (settings.textModel || 'groq:qwen/qwen3-32b');
+  const selectedModelStr = mode === 'vision' ? (settings.mediaModel || 'openrouter:openrouter/free') : (settings.textModel || 'openrouter:openrouter/free');
   const [provider, modelId] = selectedModelStr.split(':');
 
   // Gemini supports JSON with vision, Groq Llama 3.2 Vision also supports JSON mode
@@ -61,6 +61,9 @@ export const callAI = async (prompt: string, options: {
   if (provider === 'groq') {
     if (mode === 'vision' && !modelId.includes('vision')) isJsonModeSupported = false;
     if (modelId.includes('compound') || modelId.includes('deepseek')) isJsonModeSupported = false;
+  }
+  if (provider === 'openrouter' && modelId.includes('free')) {
+    isJsonModeSupported = false;
   }
 
   let apiKey = '';
@@ -396,6 +399,42 @@ export const generateFlashcards = async (
   }
 };
 
+export const fetchWikiCommonDiagram = async (query: string): Promise<string[]> => {
+  try {
+    // Search for diagrams specifically
+    const searchQuery = encodeURIComponent(`${query} diagram`);
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=${searchQuery}&srnamespace=6&srlimit=10&origin=*`;
+    
+    const response = await fetch(searchUrl);
+    const data = await response.json();
+    
+    if (data.query?.search?.length > 0) {
+      // Get titles for up to 10 results
+      const titles = data.query.search.map((item: any) => item.title).join('|');
+      
+      // Get the actual image URLs for these titles
+      const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url&titles=${encodeURIComponent(titles)}&origin=*`;
+      const infoResponse = await fetch(infoUrl);
+      const infoData = await infoResponse.json();
+      
+      const pages = infoData.query?.pages;
+      if (pages) {
+        const urls: string[] = [];
+        Object.values(pages).forEach((page: any) => {
+            if (page.imageinfo?.[0]?.url) {
+                urls.push(page.imageinfo[0].url);
+            }
+        });
+        return urls;
+      }
+    }
+    return [];
+  } catch (e) {
+    console.error("Wiki Common Fetch Error:", e);
+    return [];
+  }
+};
+
 export const generateDiagramCode = async (prompt: string): Promise<string> => {
   try {
     const text = await callAI(`Generate Mermaid.js diagram code for: "${prompt}".
@@ -503,7 +542,7 @@ export const solveProblemFromImage = async (base64Data: string, mimeType: string
 export const getChatResponseStream = async (history: any[], message: string) => {
   const settings = getSettings();
   
-  const selectedModelStr = settings.textModel || 'groq:qwen/qwen3-32b';
+  const selectedModelStr = settings.textModel || 'openrouter:openrouter/free';
   const [provider, modelId] = selectedModelStr.split(':');
 
   let apiKey = '';
@@ -547,7 +586,17 @@ export const getChatResponseStream = async (history: any[], message: string) => 
         
         return (async function* () {
             for await (const chunk of stream) {
-                if (chunk.text) {
+                const parts = chunk.candidates?.[0]?.content?.parts || [];
+                for (const part of parts) {
+                    if (part.text) {
+                        yield { text: part.text };
+                    }
+                    if ((part as any).thought) {
+                        yield { reasoning: (part as any).thought };
+                    }
+                }
+                // Fallback for older SDK versions or different response structures
+                if (!parts.length && chunk.text) {
                     yield { text: chunk.text };
                 }
             }
@@ -659,7 +708,9 @@ export const getChatResponseStream = async (history: any[], message: string) => 
       const body: any = {
           model: currentModel,
           messages: filteredMessages,
-          stream: true
+          stream: true,
+          temperature: 0.7,
+          max_tokens: 4096
       };
       if (tools && tools.length > 0 && !skipTools) {
           body.tools = tools;
@@ -679,185 +730,140 @@ export const getChatResponseStream = async (history: any[], message: string) => 
       });
   };
 
-  let response = await performFetch(url, apiKey as string, modelId, messages);
-
-  if (!response.ok) {
-    let errData = await response.json().catch(() => ({}));
-    let errMsg = (errData.error?.message || errData.message || JSON.stringify(errData) || `Failed to connect to ${provider}`).toLowerCase();
-    
-    // If the model fails to generate a valid tool call, retry without tools
-    if (errMsg.includes("failed to call a function") || errMsg.includes("failed_generation") || errMsg.includes("tool_calls") || errMsg.includes("not supported with this model")) {
-        console.warn("Model failed to call a function or does not support tools, retrying without tools...");
-        response = await performFetch(url, apiKey as string, modelId, messages, true);
-        if (!response.ok) {
-            errData = await response.json().catch(() => ({}));
-            errMsg = errData.error?.message || errData.message || `Failed to connect to ${provider} after retry`;
-            throw new Error(errMsg);
-        }
-    } else {
-        throw new Error(errData.error?.message || errData.message || errMsg);
-    }
-  }
-
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-
   return (async function* () {
-    if (!reader) return;
-    let buffer = '';
-    let isToolCall = false;
-    let toolCallId = '';
-    let toolCallName = '';
-    let toolCallArgs = '';
+    let currentMessages = [...messages];
+    let rounds = 0;
+    const maxRounds = 5;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+    while (rounds < maxRounds) {
+        rounds++;
+        let response = await performFetch(url, apiKey as string, modelId, currentMessages);
 
-      for (const line of lines) {
-        if (line.startsWith('event: ') || line.startsWith(':')) continue;
-        const cleanLine = line.replace(/^data:\s*/, '').trim();
-        if (cleanLine === '' || cleanLine === '[DONE]') continue;
-        
-        try {
-          const json = JSON.parse(cleanLine);
-          
-          if (json.error) {
-              const errMsg = json.error.message || "API Error during streaming";
-              throw new Error(`[API_ERROR] ${errMsg}`);
-          }
-
-          if (provider === 'groq' && json.usage?.total_tokens) {
-              updateGroqUsage(json.usage.total_tokens);
-          }
-
-          const delta = json.choices?.[0]?.delta;
-          if (delta?.tool_calls) {
-              isToolCall = true;
-              const tc = delta.tool_calls[0];
-              if (tc.id) toolCallId = tc.id;
-              if (tc.function?.name) toolCallName = tc.function.name;
-              if (tc.function?.arguments) toolCallArgs += tc.function.arguments;
-          } else {
-              if (delta?.reasoning) {
-                  yield { reasoning: delta.reasoning };
-              }
-              if (delta?.content) {
-                  yield { text: delta.content };
-              }
-          }
-        } catch (e: any) {
-          if (e.message && e.message.startsWith("[API_ERROR]")) {
-              throw new Error(e.message.replace("[API_ERROR] ", ""));
-          }
-          console.warn("Error parsing stream chunk", e);
-        }
-      }
-    }
-
-    if (isToolCall) {
-        let displayToolName = toolCallName;
-        if (toolCallName === 'web_search') displayToolName = '🔍 Searching the web';
-        else if (toolCallName === 'visit_webpage') displayToolName = '🌐 Browsing webpage';
-        else if (toolCallName === 'execute_code') displayToolName = '💻 Executing code';
-        else if (toolCallName === 'wolfram_alpha') displayToolName = '🧮 Querying Wolfram Alpha';
-
-        yield { tool: displayToolName };
-        let toolResult = "";
-        try {
-            const args = JSON.parse(toolCallArgs || "{}");
-            if (toolCallName === 'web_search') {
-                toolResult = await executeWebSearch(args.query || "");
-            } else if (toolCallName === 'visit_webpage') {
-                toolResult = await executeWebVisit(args.url || "");
-            } else if (toolCallName === 'execute_code') {
-                toolResult = "Code execution is simulated. Output: Success.";
-            } else if (toolCallName === 'wolfram_alpha') {
-                toolResult = "Wolfram Alpha query simulated. Result: 42.";
-            }
-        } catch (e) {
-            toolResult = "Error executing tool.";
-        }
-        
-        // Ensure toolCallId is not empty for OpenRouter
-        const safeToolCallId = toolCallId || `call_${Date.now()}`;
-
-        messages.push({
-            role: 'assistant',
-            content: null,
-            tool_calls: [{
-                id: safeToolCallId,
-                type: 'function',
-                function: { name: toolCallName, arguments: toolCallArgs || "{}" }
-            }]
-        } as any);
-        messages.push({
-            role: 'tool',
-            tool_call_id: safeToolCallId,
-            name: toolCallName,
-            content: toolResult
-        } as any);
-        
-        let secondResponse = await performFetch(url, apiKey as string, modelId, messages);
-        yield { doneTool: true };
-
-        let secondErrData = null;
-        if (!secondResponse.ok) {
-            secondErrData = await secondResponse.json().catch(() => ({}));
-            let errMsg = (secondErrData.error?.message || secondErrData.message || JSON.stringify(secondErrData) || "").toLowerCase();
-            if (errMsg.includes("failed to call a function") || errMsg.includes("failed_generation") || errMsg.includes("tool_calls")) {
-                console.warn("Model failed to call a function on second pass, retrying without tools...");
-                secondResponse = await performFetch(url, apiKey as string, modelId, messages, true);
-                if (!secondResponse.ok) {
-                    secondErrData = await secondResponse.json().catch(() => ({}));
+        if (!response.ok) {
+            let errData = await response.json().catch(() => ({}));
+            let errMsg = (errData.error?.message || errData.message || JSON.stringify(errData) || `Failed to connect to ${provider}`).toLowerCase();
+            
+            if (errMsg.includes("failed to call a function") || errMsg.includes("failed_generation") || errMsg.includes("tool_calls") || errMsg.includes("not supported with this model")) {
+                console.warn("Model failed to call a function or does not support tools, retrying without tools...");
+                response = await performFetch(url, apiKey as string, modelId, currentMessages, true);
+                if (!response.ok) {
+                    errData = await response.json().catch(() => ({}));
+                    errMsg = errData.error?.message || errData.message || `Failed to connect to ${provider} after retry`;
+                    throw new Error(errMsg);
                 }
+            } else {
+                throw new Error(errData.error?.message || errData.message || errMsg);
             }
         }
 
-        if (secondResponse.ok) {
-            const secondReader = secondResponse.body?.getReader();
-            if (secondReader) {
-                let secondBuffer = '';
-                while (true) {
-                    const { done, value } = await secondReader.read();
-                    if (done) break;
-                    secondBuffer += decoder.decode(value, { stream: true });
-                    const lines = secondBuffer.split('\n');
-                    secondBuffer = lines.pop() || '';
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('event: ') || line.startsWith(':')) continue;
-                        const cleanLine = line.replace(/^data:\s*/, '').trim();
-                        if (cleanLine === '' || cleanLine === '[DONE]') continue;
-                        try {
-                            const json = JSON.parse(cleanLine);
-                            if (json.error) {
-                                const errMsg = json.error.message || "API Error during streaming";
-                                throw new Error(`[API_ERROR] ${errMsg}`);
-                            }
-                            const delta = json.choices?.[0]?.delta;
-                            if (delta?.reasoning) {
-                                yield { reasoning: delta.reasoning };
-                            }
-                            if (delta?.content) {
-                                yield { text: delta.content };
-                            }
-                        } catch (e: any) {
-                            if (e.message && e.message.startsWith("[API_ERROR]")) {
-                                throw new Error(e.message.replace("[API_ERROR] ", ""));
-                            }
-                            console.warn("Error parsing second stream chunk", e);
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) return;
+
+        let buffer = '';
+        let isToolCall = false;
+        let toolCalls: any[] = [];
+        let currentAssistantContent = "";
+        let currentAssistantReasoning = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('event: ') || line.startsWith(':')) continue;
+                const cleanLine = line.replace(/^data:\s*/, '').trim();
+                if (cleanLine === '' || cleanLine === '[DONE]') continue;
+                
+                try {
+                    const json = JSON.parse(cleanLine);
+                    if (json.error) throw new Error(`[API_ERROR] ${json.error.message || "API Error"}`);
+
+                    if (provider === 'groq' && json.usage?.total_tokens) {
+                        updateGroqUsage(json.usage.total_tokens);
+                    }
+
+                    const delta = json.choices?.[0]?.delta;
+                    if (delta?.tool_calls) {
+                        isToolCall = true;
+                        delta.tool_calls.forEach((tc: any) => {
+                            const index = tc.index || 0;
+                            if (!toolCalls[index]) toolCalls[index] = { id: '', name: '', arguments: '' };
+                            if (tc.id) toolCalls[index].id = tc.id;
+                            if (tc.function?.name) toolCalls[index].name = tc.function.name;
+                            if (tc.function?.arguments) toolCalls[index].arguments += tc.function.arguments;
+                        });
+                    } else {
+                        if (delta?.reasoning) {
+                            currentAssistantReasoning += delta.reasoning;
+                            yield { reasoning: delta.reasoning };
+                        }
+                        if (delta?.content) {
+                            currentAssistantContent += delta.content;
+                            yield { text: delta.content };
                         }
                     }
+                } catch (e: any) {
+                    if (e.message && e.message.startsWith("[API_ERROR]")) throw e;
+                    console.warn("Error parsing stream chunk", e);
                 }
             }
+        }
+
+        if (isToolCall) {
+            // Filter out empty tool calls
+            const activeToolCalls = toolCalls.filter(tc => tc.name || tc.id);
+            
+            // Add assistant message with tool calls to history
+            currentMessages.push({
+                role: 'assistant',
+                content: currentAssistantContent || null,
+                tool_calls: activeToolCalls.map(tc => ({
+                    id: tc.id || `call_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    type: 'function',
+                    function: { name: tc.name, arguments: tc.arguments || "{}" }
+                }))
+            } as any);
+
+            // Execute tools and add results to history
+            for (const tc of activeToolCalls) {
+                let displayToolName = tc.name;
+                if (tc.name === 'web_search') displayToolName = '🔍 Searching the web';
+                else if (tc.name === 'visit_webpage') displayToolName = '🌐 Browsing webpage';
+                else if (tc.name === 'execute_code') displayToolName = '💻 Executing code';
+                else if (tc.name === 'wolfram_alpha') displayToolName = '🧮 Querying Wolfram Alpha';
+
+                yield { tool: displayToolName };
+                
+                let toolResult = "";
+                try {
+                    const args = JSON.parse(tc.arguments || "{}");
+                    if (tc.name === 'web_search') toolResult = await executeWebSearch(args.query || "");
+                    else if (tc.name === 'visit_webpage') toolResult = await executeWebVisit(args.url || "");
+                    else if (tc.name === 'execute_code') toolResult = "Code execution is simulated. Output: Success.";
+                    else if (tc.name === 'wolfram_alpha') toolResult = "Wolfram Alpha is no longer supported. Please use web search.";
+                    else toolResult = "Tool not found.";
+                } catch (e) {
+                    toolResult = "Error executing tool.";
+                }
+
+                currentMessages.push({
+                    role: 'tool',
+                    tool_call_id: tc.id || (currentMessages[currentMessages.length - 1] as any).tool_calls[0].id,
+                    name: tc.name,
+                    content: toolResult
+                } as any);
+            }
+
+            yield { doneTool: true };
+            // Continue to next round to get the model's response to tool results
         } else {
-            console.error("Second response failed", secondErrData);
-            yield { text: "\n\n*Error getting final response after tool call. Please try again.*" };
+            // No more tool calls, we are done
+            break;
         }
     }
   })();

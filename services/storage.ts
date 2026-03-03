@@ -28,10 +28,10 @@ export const getSettings = (): UserSettings => {
     name: 'Student',
     academicLevel: 'High School',
     profileImage: null,
-    aiProvider: 'gemini',
-    textModel: 'groq:qwen/qwen3-32b',
-    mediaModel: 'groq:meta-llama/llama-4-scout-17b-16e-instruct',
-    diagramModel: 'imagen-4'
+    aiProvider: 'openrouter',
+    textModel: 'openrouter:openrouter/free',
+    mediaModel: 'openrouter:openrouter/free',
+    diagramModel: 'wiki-common'
   };
   if (stored) {
     const parsed = JSON.parse(stored);

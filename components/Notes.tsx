@@ -116,6 +116,10 @@ export const Notes: React.FC = () => {
       setIsProcessingImage(true);
       try {
         const { title, content } = await processImageToNote(base64, file.type);
+        if (title === "Error") {
+          alert(content || "Failed to process image. Please try again.");
+          return;
+        }
         const newNote: Note = {
           id: Date.now().toString(),
           title,
